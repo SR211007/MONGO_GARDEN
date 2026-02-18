@@ -1,4 +1,4 @@
-// initials
+// initials 
   #include <Wire.h>
   #include <ThreeWire.h>
   #include <RtcDS1302.h>
@@ -8,12 +8,14 @@
   #include <SD.h>
   #include <SPI.h>
   #include <WiFi101.h>
+  #include <Adafruit_BMP085.h>
   #define DEMOPIN A6
   #define SIG1 A0
   #define SIG2 A1
   #define RELAYR A2
   #define RELAYL A3
   #define RELAYS A4
+  Adafruit_BMP085 bmp;
   ThreeWire wireClock(13, 14, A5);
   RtcDS1302<ThreeWire> Rtcmod(wireClock);
   DHT dhtexterno(5, DHT11);
@@ -57,6 +59,11 @@ void setup()
   Serial.println("DHT11 Interno inicializado");
   Rtcmod.Begin();
   Serial.println("Modulo de reloj inicializado");
+  if (!bmp.begin()) {
+    Serial.println("¡Sensor BMP180 no encontrado! Verifica conexiones.");
+    while (1) {}
+  }
+  Serial.println("BMP180 listo. Leyendo datos...");
   demomode = digitalRead(DEMOPIN);
   if (demomode == 1)
     {
@@ -88,7 +95,7 @@ void comserial()
       Serial.println("Funciones disponibles: ");
     }
     if (comando.equals("1")) {
-      leersensores();
+      leersensores(1000);
     } 
     else if (comando.equals("2")) {
       obtenerhora();
@@ -133,7 +140,7 @@ void obtenereimprimirhora()
     obtenerhora();
     imprimirhora();
   }
-void leersensores()
+void leersensores(int time_between_readings)
   {
   digitalWrite(RELAYS, HIGH); //RELE SENSORE ON
   digitalWrite(4, LOW); // Habilitar multiplexor
@@ -144,7 +151,7 @@ void leersensores()
   digitalWrite(2, LOW);
   digitalWrite(3, LOW);
   Serial.println("canal 0");
-  delay(5000);
+  delay(time_between_readings);
 
   // Canal 1: 1000
   digitalWrite(0, HIGH);
@@ -156,7 +163,7 @@ void leersensores()
   RA1 = analogRead(SIG1);
   LA1 = analogRead(SIG2);
   Serial.println(String("RA1: ") + String(RA1) + " " + String("LA1: ") + String(LA1));
-  delay(5000);
+  delay(time_between_readings);
 
   // Canal 2: 0100
   digitalWrite(0, LOW);
@@ -168,7 +175,7 @@ void leersensores()
   RA2 = analogRead(SIG1);
   LA2 = analogRead(SIG2);
   Serial.println(String("RA2: ") + String(RA2) + " " + String("LA2: ") + String(LA2));
-  delay(5000);
+  delay(time_between_readings);
 
   // Canal 3: 1100
   digitalWrite(0, HIGH);
@@ -180,7 +187,7 @@ void leersensores()
   RA3 = analogRead(SIG1);
   LA3 = analogRead(SIG2);
   Serial.println(String("RA3: ") + String(RA3) + " " + String("LA3: ") + String(LA3));
-  delay(5000);
+  delay(time_between_readings);
 
   // Canal 4: 0010
   digitalWrite(0, LOW);
@@ -192,7 +199,7 @@ void leersensores()
   RA4 = analogRead(SIG1);
   LA4 = analogRead(SIG2);
   Serial.println(String("RA4: ") + String(RA4) + " " + String("LA4: ") + String(LA4));
-  delay(5000);
+  delay(time_between_readings);
 
   // Canal 5: 1010
   digitalWrite(0, HIGH);
@@ -204,7 +211,7 @@ void leersensores()
   RA5 = analogRead(SIG1);
   LA5 = analogRead(SIG2);
   Serial.println(String("RA5: ") + String(RA5) + " " + String("LA5: ") + String(LA5));
-  delay(5000);
+  delay(time_between_readings);
 
   // Canal 6: 0110
   digitalWrite(0, LOW);
@@ -216,7 +223,7 @@ void leersensores()
   RB1 = analogRead(SIG1);
   LB1 = analogRead(SIG2);
   Serial.println(String(RB1) + " " + String(LB1));
-  delay(5000);
+  delay(time_between_readings);
 
   // Canal 7: 1110
   digitalWrite(0, HIGH);
@@ -228,7 +235,7 @@ void leersensores()
   RB2 = analogRead(SIG1);
   LB2 = analogRead(SIG2);
   Serial.println(String(RB2) + " " + String(LB2));
-  delay(5000);
+  delay(time_between_readings);
 
   // Canal 8: 0001
   digitalWrite(0, LOW);
@@ -240,7 +247,7 @@ void leersensores()
   RB3 = analogRead(SIG1);
   LB3 = analogRead(SIG2);
   Serial.println(String(RB3) + " " + String(LB3));
-  delay(5000);
+  delay(time_between_readings);
 
   // Canal 9: 1001
   digitalWrite(0, HIGH);
@@ -252,7 +259,7 @@ void leersensores()
   RB4 = analogRead(SIG1);
   LB4 = analogRead(SIG2);
   Serial.println(String(RB4) + " " + String(LB4));
-  delay(5000);
+  delay(time_between_readings);
 
   // Canal 10: 0101
   digitalWrite(0, LOW);
@@ -264,7 +271,7 @@ void leersensores()
   RB5 = analogRead(SIG1);
   LB5 = analogRead(SIG2);
   Serial.println(String(RB5) + " " + String(LB5));
-  delay(5000);
+  delay(time_between_readings);
 
   // Canal 11: 1101
   digitalWrite(0, HIGH);
@@ -276,7 +283,7 @@ void leersensores()
   RC1 = analogRead(SIG1);
   LC1 = analogRead(SIG2);
   Serial.println(String(RC1) + " " + String(LC1));
-  delay(5000);
+  delay(time_between_readings);
 
   // Canal 12: 0011
   digitalWrite(0, LOW);
@@ -288,7 +295,7 @@ void leersensores()
   RC2 = analogRead(SIG1);
   LC2 = analogRead(SIG2);
   Serial.println(String(RC2) + " " + String(LC2));
-  delay(5000);
+  delay(time_between_readings);
 
   // Canal 13: 1011
   digitalWrite(0, HIGH);
@@ -300,7 +307,7 @@ void leersensores()
   RC3 = analogRead(SIG1);
   LC3 = analogRead(SIG2);
   Serial.println(String(RC3) + " " + String(LC3));
-  delay(5000);
+  delay(time_between_readings);
 
   // Canal 14: 0111
   digitalWrite(0, LOW);
@@ -311,7 +318,7 @@ void leersensores()
   RC4 = analogRead(SIG1);
   LC4 = analogRead(SIG2);
   Serial.println(String(RC4) + " " + String(LC4));
-  delay(5000);
+  delay(time_between_readings);
 
   // Canal 15: 1111
   digitalWrite(0, HIGH);
@@ -323,7 +330,7 @@ void leersensores()
   RC5 = analogRead(SIG1);
   LC5 = analogRead(SIG2);
   Serial.println(String(RC5) + " " + String(LC5));
-  delay(5000);
+  delay(time_between_readings);
 
   digitalWrite(4, HIGH); // Deshabilitar multiplexor
   digitalWrite(RELAYS, LOW); //RELE SENSORES OFF
@@ -572,4 +579,20 @@ void printMacAddress(byte mac[])
   }
   Serial.println();
   }  
+void barometro() {
+  Serial.print("Temperatura: ");
+  Serial.print(bmp.readTemperature());
+  Serial.println(" °C");
+
+  Serial.print("Presión: ");
+  Serial.print(bmp.readPressure());
+  Serial.println(" Pa");
+
+  Serial.print("Altitud: ");
+  Serial.print(bmp.readAltitude(101325));  // Presión al nivel del mar estándar
+  Serial.println(" metros");
+
+  Serial.println("---");
+  delay(2000);
+}
 //a
