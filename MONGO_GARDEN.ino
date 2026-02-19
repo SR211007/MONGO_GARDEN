@@ -44,12 +44,14 @@ void setup()
   pinMode(5, INPUT);
   pinMode(6, INPUT);
   pinMode(7, OUTPUT); // CS PIN
+  //--------------ESTO NO HACE FALTA DECLARARLO, PERO SE DEJA COMENTADO PARA TERMINOS PRACTICOS------
   // pinMode(8, OUTPUT); MOSI PIN
   // pinMode(9, OUTPUT); SCK PIN
   // pinMode(10, OUTPUT); MISO PIN
   // pinMode(11, OUTPUT); I/O PIN
   // pinMode(12, INPUT); SCLK
   // pinMode(13, INPUT); RST 
+  //-------------------------------------------------------------------------------------------------
   Serial.begin(9600);
   delay(5000);
   Serial.println("Serial inicializado");
@@ -59,21 +61,16 @@ void setup()
   Serial.println("DHT11 Interno inicializado");
   Rtcmod.Begin();
   Serial.println("Modulo de reloj inicializado");
-  if (!bmp.begin()) {
-    Serial.println("¡Sensor BMP180 no encontrado! Verifica conexiones.");
-    while (1) {}
-  }
-  Serial.println("BMP180 listo. Leyendo datos...");
+  if (!bmp.begin()) {Serial.println("Error inicializando BMP180");} else {Serial.println("BMP180 inicializado");}
+  if (!(SD.begin(CS_PIN))) {Serial.println("Error inicializando modulo SD");} else { Serial.println("Modulo SD inicializado");}
   demomode = digitalRead(DEMOPIN);
   if (demomode == 1)
     {
       Serial.println("DEMO MODE ACTIVE");
       setRTCtoCompileTime();
     }
-  if (!(SD.begin(CS_PIN))) {
-    Serial.println("Error inicializando tarjeta SD");
-  }
-  else { Serial.println("Tarjeta SD iniciada");}
+
+
   Serial.println("------------");
   digitalWrite(RELAYS, LOW);
 
@@ -91,7 +88,7 @@ void comserial()
     comando.trim(); // Eliminar espacios en blanco al inicio y al final
     Serial.println("comando ingresado: " + comando);
     // Comparar comando y llamar a función correspondiente
-    if (comando.equals("diccionario")) {
+    if (comando.equals("help")) {
       Serial.println("Funciones disponibles: ");
     }
     if (comando.equals("1")) {
@@ -122,7 +119,7 @@ void comserial()
       escribirDatos();
     }
     else {
-      Serial.println("Comando no reconocido, escriba -diccionario- para ver la tabla de funciones");
+      Serial.println("Comando no reconocido, escriba help para ver la tabla de funciones");
     }
   }
   }
