@@ -1,6 +1,0 @@
-{
-    "board": "arduino:samd:mkr1000",
-    "port": "COM1",
-    "sketch": "MONGO_GARDEN.ino",
-    "programmer": "atmel_ice"
-}
