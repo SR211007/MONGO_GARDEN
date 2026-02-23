@@ -64,14 +64,10 @@ void setup()
   if (!bmp.begin()) {Serial.println("Error inicializando BMP180");} else {Serial.println("BMP180 inicializado");}
   if (!(SD.begin(CS_PIN))) {Serial.println("Error inicializando modulo SD");} else { Serial.println("Modulo SD inicializado");}
   demomode = digitalRead(DEMOPIN);
-  if (demomode == 1)
-    {
-      Serial.println("DEMO MODE ACTIVE");
-      setRTCtoCompileTime();
-    }
+  if (demomode == 1) {Serial.println("DEMO MODE ACTIVE");setRTCtoCompileTime();}
 
 
-  Serial.println("------------");
+  Serial.println("------FIN INICIO------");
   digitalWrite(RELAYS, LOW);
 
 
