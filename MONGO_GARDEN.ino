@@ -9,6 +9,7 @@
   #include <SPI.h>
   #include <WiFi101.h>
   #include <Adafruit_BMP085.h>
+  #include <WebSocketsServer_Generic.h>
   #define DEMOPIN A6
   #define SIG1 A0
   #define SIG2 A1
@@ -20,14 +21,19 @@
   RtcDS1302<ThreeWire> Rtcmod(wireClock);
   DHT dhtexterno(5, DHT11);
   DHT dhtinterno(6, DHT11);
-  int LA1, LA2, LA3, LA4, LA5, LB1, LB2, LB3, LB4, LB5, LC1, LC2, LC3, LC4, LC5, RA1, RA2, RA3, RA4, RA5, RB1, RB2, RB3, RB4, RB5, RC1, RC2, RC3, RC4, RC5;
-  int H, TC, TF, HIC, HIF;
+  WiFiServer server(80);          // Servidor HTTP normal para cargar la web (Puerto 80)
+  WebSocketsServer webSocket = WebSocketsServer(81); // Servidor WebSocket (Puerto 81)
+  File archivo;
   String FYH;
   String hostName = "www.google.com";
+  int LA1, LA2, LA3, LA4, LA5, LB1, LB2, LB3, LB4, LB5, LC1, LC2, LC3, LC4, LC5, RA1, RA2, RA3, RA4, RA5, RB1, RB2, RB3, RB4, RB5, RC1, RC2, RC3, RC4, RC5;
+  int H, TC, TF, HIC, HIF;
   int pingResult;
   const int CS_PIN = 7;
-  File archivo;
   int demomode;
+  bool wifiConectado = false;
+  char ssid[] = "Semillero ASI";        // your network SSID (name)
+  char pass[] = "semilleroasik601";    // your network password (use for WPA, or use as key for WEP)
 void setup() 
   {
   pinMode(DEMOPIN, INPUT);
@@ -66,6 +72,36 @@ void setup()
   demomode = digitalRead(DEMOPIN);
   if (demomode == 1) {Serial.println("DEMO MODE ACTIVE");setRTCtoCompileTime();}
 
+
+  int intentosWiFi = 0;
+  int maxIntentos = 3;
+  
+  Serial.println("Iniciando conexion WiFi...");
+  
+  // Intenta conectar mientras NO esté conectado Y los intentos sean menores al máximo
+  while (WiFi.begin(ssid, pass) != WL_CONNECTED && intentosWiFi < maxIntentos) 
+  {
+    intentosWiFi++;
+    Serial.print("Intento ");
+    Serial.print(intentosWiFi);
+    Serial.println(" fallido. Reintentando en 5 segundos...");
+    delay(5000); // El chip WiFi101 necesita tiempo entre intentos
+  }
+
+  // Evaluamos cómo salió del bucle
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.print("WiFi Conectado! IP: ");
+    Serial.println(WiFi.localIP());
+    wifiConectado = true;
+    
+    // Iniciamos el servidor WebSocket SOLAMENTE si hay WiFi
+    webSocket.begin();
+    webSocket.onEvent(webSocketEvent);
+  } else {
+    Serial.println("Error de red: Imposible conectar tras 3 intentos.");
+    Serial.println("Iniciando en MODO OFFLINE. Los datos se guardaran localmente en la SD.");
+    wifiConectado = false;
+  }
 
   Serial.println("------FIN INICIO------");
   digitalWrite(RELAYS, LOW);
@@ -487,10 +523,8 @@ void pingToHost()
   }  
 void WiFiconnect()
   {
-  char ssid[] = "Semillero ASI";        // your network SSID (name)
-  char pass[] = "semilleroasik601";    // your network password (use for WPA, or use as key for WEP)
+  //----------------FUNCIÓN EN DESUSO------------------
   int status = WL_IDLE_STATUS;     // the WiFi radio's status
-
   // Specify IP address or hostname
   int pingResult;
 
@@ -587,5 +621,94 @@ void barometro() {
 
   Serial.println("---");
   delay(2000);
+}
+void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length)
+{
+  switch (type)
+  {
+    case WStype_DISCONNECTED:
+      Serial.print("[");
+      Serial.print(num);
+      Serial.println("] Cliente desconectado");
+      break;
+
+    case WStype_CONNECTED:
+      Serial.print("[");
+      Serial.print(num);
+      Serial.println("] Cliente conectado");
+
+      // Mensaje de bienvenida al cliente que se conectó
+      webSocket.sendTXT(num, "OK: Conectado al MKR1000");
+      break;
+
+    case WStype_TEXT:
+    {
+      // Convertir payload -> String de forma segura usando length
+      char msg[/*length*/ 1]; // placeholder para compilar en algunos editores
+      // En Arduino IDE / GCC, puedes usar VLA (char msg[length+1]) pero no es estándar C++.
+      // Mejor: usa un buffer fijo si controlas el tamaño máximo del mensaje.
+      // Aquí va una versión segura con buffer fijo:
+      const size_t MAX_MSG = 128;               // Ajusta según tus comandos
+      size_t n = (length < MAX_MSG) ? length : (MAX_MSG - 1);
+      char buf[MAX_MSG];
+      memcpy(buf, payload, n);
+      buf[n] = '\0';
+
+      String comando = String(buf);             // (char*)payload es común, pero aquí ya es seguro [web:78]
+      comando.trim();
+
+      Serial.print("[");
+      Serial.print(num);
+      Serial.print("] Texto recibido: ");
+      Serial.println(comando);
+
+      if (comando == "help") {
+        webSocket.sendTXT(num, "Comandos: help, 1=leersensores, 2=obtenerhora, 3=imprimirhora, 4=obtener+imprimir, 5=DHT int, 6=DHT ext, 8=ping, 9=guardar SD");
+      }
+      else if (comando == "1") {
+        webSocket.sendTXT(num, "OK: iniciando lectura sensores...");
+        leersensores(1000);                     // OJO: esto bloquea bastante por tus delays
+        webSocket.sendTXT(num, "OK: lectura sensores finalizada");
+      }
+      else if (comando == "2") {
+        obtenerhora();
+        webSocket.sendTXT(num, "OK: hora obtenida (usa comando 3 para imprimir)");
+      }
+      else if (comando == "3") {
+        // FYH ya debe estar actualizado con obtenerhora()
+        webSocket.sendTXT(num, FYH.c_str());
+      }
+      else if (comando == "4") {
+        obtenereimprimirhora();
+        webSocket.sendTXT(num, FYH.c_str());
+      }
+      else if (comando == "5") {
+        // Tu función actual imprime a Serial; si quieres responder al navegador,
+        // conviértela a una función que retorne String y envíala acá.
+        humedaddht11interno();
+        webSocket.sendTXT(num, "OK: DHT interno leído (ver Serial).");
+      }
+      else if (comando == "6") {
+        humedaddht11externo();
+        webSocket.sendTXT(num, "OK: DHT externo leído (ver Serial).");
+      }
+      else if (comando == "8") {
+        pingToHost();
+        webSocket.sendTXT(num, "OK: ping ejecutado (ver Serial).");
+      }
+      else if (comando == "9") {
+        escribirDatos();
+        webSocket.sendTXT(num, "OK: datos guardados en SD");
+      }
+      else {
+        webSocket.sendTXT(num, "ERR: comando no reconocido (usa help)");
+      }
+      break;
+    }
+
+    default:
+      // Para otros tipos (BIN, PING, PONG, etc.)
+      break;
+  }
 }
 //a
