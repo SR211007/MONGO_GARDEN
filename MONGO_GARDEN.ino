@@ -91,12 +91,15 @@ void setup()
   // Evaluamos cómo salió del bucle
   if (WiFi.status() == WL_CONNECTED) {
     Serial.print("WiFi Conectado! IP: ");
-    Serial.println(WiFi.localIP());
+    IPAddress ip = WiFi.localIP();
+    Serial.print("IP address : ");
+    Serial.println(ip);
     wifiConectado = true;
     
     // Iniciamos el servidor WebSocket SOLAMENTE si hay WiFi
     webSocket.begin();
     webSocket.onEvent(webSocketEvent);
+
   } else {
     Serial.println("Error de red: Imposible conectar tras 3 intentos.");
     Serial.println("Iniciando en MODO OFFLINE. Los datos se guardaran localmente en la SD.");
@@ -111,6 +114,7 @@ void setup()
 
 void loop() 
   {
+
     comserial();    
   }
 void comserial() 
@@ -142,7 +146,7 @@ void comserial()
       humedaddht11externo();
     }
     else if (comando.equals("7")) {
-      WiFiconnect();
+      printWiFiData();
     }
     else if (comando.equals("8")) {
       pingToHost();
