@@ -10,6 +10,7 @@
   #include <WiFi101.h>
   #include <Adafruit_BMP085.h>
   #include <WebSocketsServer_Generic.h>
+  #include <Adafruit_TSL2561_U.h>
   #define DEMOPIN A6
   #define SIG1 A0
   #define SIG2 A1
@@ -23,6 +24,7 @@
   DHT dhtinterno(6, DHT11);
   WiFiServer server(80);          // Servidor HTTP normal para cargar la web (Puerto 80)
   WebSocketsServer webSocket = WebSocketsServer(81); // Servidor WebSocket (Puerto 81)
+  Adafruit_TSL2561_Unified tsl = Adafruit_TSL2561_Unified(TSL2561_ADDR_FLOAT, 12345);
   File archivo;
   String FYH;
   String hostName = "www.google.com";
@@ -68,6 +70,7 @@ void setup()
   Rtcmod.Begin();
   Serial.println("Modulo de reloj inicializado");
   if (!bmp.begin()) {Serial.println("Error inicializando BMP180");} else {Serial.println("BMP180 inicializado");}
+  if (!tsl.begin()) {Serial.println("Error inicializando TSL2561");} else {Serial.println("TSL2561 inicializado");tsl.setGain(TSL2561_GAIN_1X);tsl.setIntegrationTime(TSL2561_INTEGRATIONTIME_13MS);}
   if (!(SD.begin(CS_PIN))) {Serial.println("Error inicializando modulo SD");} else { Serial.println("Modulo SD inicializado");}
   demomode = digitalRead(DEMOPIN);
   if (demomode == 1) {Serial.println("DEMO MODE ACTIVE");setRTCtoCompileTime();}
@@ -153,6 +156,12 @@ void comserial()
     }
     else if (comando.equals("9")) {
       escribirDatos();
+    }
+    else if (comando.equals("10")) {
+      barometro();
+    }
+    else if (comando.equals("11")) {
+      TSL2561();
     }
     else {
       Serial.println("Comando no reconocido, escriba help para ver la tabla de funciones");
@@ -715,4 +724,33 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
       break;
   }
 }
+void TSL2561() {
+  sensors_event_t event;
+  tsl.getEvent(&event);
+
+  Serial.print("Luz exterior: ");
+  Serial.print(event.light, 1);  // 1 decimal para precisión
+  Serial.println(" lux");
+  
+  // Clasificación específica para AIRE LIBRE
+  if (event.light < 100) {
+    Serial.println("NOCHE / Amanecer / Anochecer");
+  } else if (event.light < 1000) {
+    Serial.println("AMANECER / ATARDECER");
+  } else if (event.light < 10000) {
+    Serial.println("NUBLADO");
+  } else if (event.light < 50000) {
+    Serial.println("SOL DIRECTO");
+  } else {
+    Serial.println("FUERA DE RANGO");
+  }
+  
+  // Conversión aproximada a índice UV (correlación aproximada)
+  float uvIndex = event.light / 2500.0;
+  Serial.print("Índice UV aproximado: ");
+  Serial.println(uvIndex, 1);
+  
+  Serial.println("---");
+}
+
 //a
