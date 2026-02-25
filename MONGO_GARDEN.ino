@@ -31,11 +31,15 @@
   int LA1, LA2, LA3, LA4, LA5, LB1, LB2, LB3, LB4, LB5, LC1, LC2, LC3, LC4, LC5, RA1, RA2, RA3, RA4, RA5, RB1, RB2, RB3, RB4, RB5, RC1, RC2, RC3, RC4, RC5;
   int H, TC, TF, HIC, HIF;
   int pingResult;
+  int status = 0;
   const int CS_PIN = 7;
   int demomode;
   bool wifiConectado = false;
+  bool serverRunning = false;
   char ssid[] = "Semillero ASI";        // your network SSID (name)
   char pass[] = "semilleroasik601";    // your network password (use for WPA, or use as key for WEP)
+  char ap_ssid[] = "MONGO_GARDEN";
+  char ap_pass[] = "mongo_pwr";
 void setup() 
   {
   pinMode(DEMOPIN, INPUT);
@@ -76,38 +80,7 @@ void setup()
   if (demomode == 1) {Serial.println("DEMO MODE ACTIVE");setRTCtoCompileTime();}
 
 
-  int intentosWiFi = 0;
-  int maxIntentos = 3;
-  
-  Serial.println("Iniciando conexion WiFi...");
-  
-  // Intenta conectar mientras NO esté conectado Y los intentos sean menores al máximo
-  while (WiFi.begin(ssid, pass) != WL_CONNECTED && intentosWiFi < maxIntentos) 
-  {
-    intentosWiFi++;
-    Serial.print("Intento ");
-    Serial.print(intentosWiFi);
-    Serial.println(" fallido. Reintentando en 5 segundos...");
-    delay(5000); // El chip WiFi101 necesita tiempo entre intentos
-  }
 
-  // Evaluamos cómo salió del bucle
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.print("WiFi Conectado! IP: ");
-    IPAddress ip = WiFi.localIP();
-    Serial.print("IP address : ");
-    Serial.println(ip);
-    wifiConectado = true;
-    
-    // Iniciamos el servidor WebSocket SOLAMENTE si hay WiFi
-    webSocket.begin();
-    webSocket.onEvent(webSocketEvent);
-
-  } else {
-    Serial.println("Error de red: Imposible conectar tras 3 intentos.");
-    Serial.println("Iniciando en MODO OFFLINE. Los datos se guardaran localmente en la SD.");
-    wifiConectado = false;
-  }
 
   Serial.println("------FIN INICIO------");
   digitalWrite(RELAYS, LOW);
@@ -130,7 +103,16 @@ void comserial()
     if (comando.equals("help")) {
       Serial.println("Funciones disponibles: ");
     }
-    if (comando.equals("1")) {
+    else if (comando.equals("server")) {
+      handleWebServer();
+    }
+    else if (comando.equals("WifiLab")) {
+      WifiLab();
+    }
+    else if (comando.equals("AP")) {
+      startWebServerAP();
+    }
+    else if (comando.equals("1")) {
       leersensores(1000);
     } 
     else if (comando.equals("2")) {
@@ -752,5 +734,124 @@ void TSL2561() {
   
   Serial.println("---");
 }
+void WifiLab()
+  {
+      int intentosWiFi = 0;
+  int maxIntentos = 3;
+  
+  Serial.println("Iniciando conexion WiFi...");
+  
+  // Intenta conectar mientras NO esté conectado Y los intentos sean menores al máximo
+  while (WiFi.begin(ssid, pass) != WL_CONNECTED && intentosWiFi < maxIntentos) 
+  {
+    intentosWiFi++;
+    Serial.print("Intento ");
+    Serial.print(intentosWiFi);
+    Serial.println(" fallido. Reintentando en 5 segundos...");
+    delay(5000); // El chip WiFi101 necesita tiempo entre intentos
+  }
+
+  // Evaluamos cómo salió del bucle
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.print("WiFi Conectado! IP: ");
+    IPAddress ip = WiFi.localIP();
+    Serial.print("IP address : ");
+    Serial.println(ip);
+    wifiConectado = true;
+    
+    // Iniciamos el servidor WebSocket SOLAMENTE si hay WiFi
+    webSocket.begin();
+    webSocket.onEvent(webSocketEvent);
+
+  } else {
+    Serial.println("Error de red: Imposible conectar tras 3 intentos.");
+    Serial.println("Iniciando en MODO OFFLINE. Los datos se guardaran localmente en la SD.");
+    wifiConectado = false;
+  }
+
+  }
+
+void startWebServerAP() {
+  if (serverRunning) {
+    Serial.println("Servidor ya está corriendo");
+    return;
+  }
+
+  Serial.println("Iniciando Access Point Web Server");
+
+
+  if (WiFi.status() == WL_NO_SHIELD) {
+    Serial.println("WiFi shield no presente");
+    while (true);
+  }
+
+  Serial.print("Creando access point: ");
+  Serial.println(ssid);
+
+  status = WiFi.beginAP(ap_ssid, 10, ap_pass);
+  if (status != WL_AP_LISTENING) {
+    Serial.println("Fallo al crear access point");
+    while (true);
+  }
+
+  delay(10000);
+  server.begin();
+  serverRunning = true;
+}
+
+void handleWebServer() {
+  while (serverRunning) {  // Bucle bloqueante, se rompe solo si serverRunning = false
+    if (status != WiFi.status()) {
+      status = WiFi.status();
+      if (status == WL_AP_CONNECTED) {
+        byte remoteMac[6];
+        Serial.print("Dispositivo conectado, MAC: ");
+        WiFi.APClientMacAddress(remoteMac);
+        printMacAddress(remoteMac);
+      } else {
+        Serial.println("Dispositivo desconectado del AP");
+      }
+    }
+
+    WiFiClient client = server.available();
+    if (client) {
+      Serial.println("Nuevo cliente");
+      String currentLine = "";
+      while (client.connected()) {
+        if (client.available()) {
+          char c = client.read();
+          Serial.write(c);
+          if (c == '\n') {
+            if (currentLine.length() == 0) {
+              client.println("HTTP/1.1 200 OK");
+              client.println("Content-type:text/html");
+              client.println();
+              client.print("Click <a href=\"/H\">here</a> para encender LED<br>");
+              client.print("Click <a href=\"/L\">here</a> para apagar LED<br>");
+              client.println();
+              break;
+            } else {
+              currentLine = "";
+            }
+          } else if (c != '\r') {
+            currentLine += c;
+          }
+
+          if (currentLine.endsWith("GET /H")) {
+            Serial.println("OBTENIDO H");
+          }
+          if (currentLine.endsWith("GET /L")) {
+            Serial.println("OBTENIDO L");
+          }
+        }
+      }
+      client.stop();
+      Serial.println("Cliente desconectado");
+      serverRunning = false;
+    }
+  }
+  Serial.println("Servidor web detenido");
+}
+
 
 //a
