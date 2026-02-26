@@ -9,6 +9,7 @@
   #include <SD.h>
   #include <SPI.h>
   #include <WiFi101.h>
+  #define USE_WIFI101_PRO           true
   #include <Adafruit_BMP085.h>
   #include <WebSocketsServer_Generic.h>
   #include <Adafruit_TSL2561_U.h>
@@ -18,6 +19,29 @@
   #define RELAYR A2
   #define RELAYL A3
   #define RELAYS A4
+  // --- PRESENTACION DE FUNCIONES ---
+  void loop();
+  void comserial();
+  void obtenerhora();
+  void imprimirhora();
+  void obtenereimprimirhora();
+  void leersensores(int time_between_readings);
+  void setRTCtoCompileTime();
+  void humedaddht11interno();
+  void humedaddht11externo();
+  void escribirDatos();
+  void pingToHost();
+  void WiFiconnect();
+  void printWiFiData();
+  void printCurrentNet();
+  void printMacAddress(byte mac[]);
+  void barometro();
+  void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length);
+  void TSL2561();
+  void WifiLab();
+  void startWebServerAP();
+  void handleWebServer();
+//-------------------------------
   Adafruit_BMP085 bmp;
   ThreeWire wireClock(13, 14, A5);
   RtcDS1302<ThreeWire> Rtcmod(wireClock);
