@@ -41,6 +41,7 @@
   char pass[] = "semilleroasik601";    // your network password (use for WPA, or use as key for WEP)
   char ap_ssid[] = "MONGO_GARDEN";
   char ap_pass[] = "mongo_pwr";
+  //ab
   
 void setup() 
   {
