@@ -644,6 +644,34 @@ void barometro() {
   Serial.println("---");
   delay(2000);
 }
+void TSL2561() {
+  sensors_event_t event;
+  tsl.getEvent(&event);
+
+  Serial.print("Luz exterior: ");
+  Serial.print(event.light, 1);  // 1 decimal para precisión
+  Serial.println(" lux");
+  
+  // Clasificación específica para AIRE LIBRE
+  if (event.light < 100) {
+    Serial.println("NOCHE / Amanecer / Anochecer");
+  } else if (event.light < 1000) {
+    Serial.println("AMANECER / ATARDECER");
+  } else if (event.light < 10000) {
+    Serial.println("NUBLADO");
+  } else if (event.light < 50000) {
+    Serial.println("SOL DIRECTO");
+  } else {
+    Serial.println("FUERA DE RANGO");
+  }
+  
+  // Conversión aproximada a índice UV (correlación aproximada)
+  float uvIndex = event.light / 2500.0;
+  Serial.print("Índice UV aproximado: ");
+  Serial.println(uvIndex, 1);
+  
+  Serial.println("---");
+}
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length)
 {
   switch (type)
@@ -733,34 +761,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
       break;
   }
 }
-void TSL2561() {
-  sensors_event_t event;
-  tsl.getEvent(&event);
 
-  Serial.print("Luz exterior: ");
-  Serial.print(event.light, 1);  // 1 decimal para precisión
-  Serial.println(" lux");
-  
-  // Clasificación específica para AIRE LIBRE
-  if (event.light < 100) {
-    Serial.println("NOCHE / Amanecer / Anochecer");
-  } else if (event.light < 1000) {
-    Serial.println("AMANECER / ATARDECER");
-  } else if (event.light < 10000) {
-    Serial.println("NUBLADO");
-  } else if (event.light < 50000) {
-    Serial.println("SOL DIRECTO");
-  } else {
-    Serial.println("FUERA DE RANGO");
-  }
-  
-  // Conversión aproximada a índice UV (correlación aproximada)
-  float uvIndex = event.light / 2500.0;
-  Serial.print("Índice UV aproximado: ");
-  Serial.println(uvIndex, 1);
-  
-  Serial.println("---");
-}
 void WifiLab()
   {
       int intentosWiFi = 0;

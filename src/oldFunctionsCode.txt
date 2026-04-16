@@ -1,0 +1,2 @@
+!!!!! FALTA CONFIGURAR TCP DE ORACLE CLOUD
+listo broker en la maquina

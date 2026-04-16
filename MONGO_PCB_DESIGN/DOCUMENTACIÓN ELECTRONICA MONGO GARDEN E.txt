@@ -13,3 +13,7 @@ A2 <---- relay solenoide derecho
 A3 <---- relay solenoide izquierdo
 A4 <---- relay regla de sensores
 A6 <---- demo pin
+
+mqtt user mkr1000
+mqtt pwr mkr1000pwr
+
