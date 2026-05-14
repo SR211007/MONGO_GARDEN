@@ -9,6 +9,7 @@
   #include <SD.h>
   #include <SPI.h>
   #include <WiFi101.h>
+  #include <MQTT.h>
   #define USE_WIFI101_PRO           true
   #include <Adafruit_BMP085.h>
   #include <WebSocketsServer_Generic.h>
