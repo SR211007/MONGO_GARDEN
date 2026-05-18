@@ -52,7 +52,20 @@
         }
       },
       "diff_pair_dimensions": [],
-      "drc_exclusions": [],
+      "drc_exclusions": [
+        [
+          "silk_edge_clearance|103170000|186595000|3784f392-d098-4720-b13a-31dcf2f3a2fb|9d338d16-443d-4d45-bb0a-b623b75291e6",
+          ""
+        ],
+        [
+          "silk_edge_clearance|33650000|186595000|3784f392-d098-4720-b13a-31dcf2f3a2fb|d213a246-06a2-47f5-8a8b-edc8b01c402a",
+          ""
+        ],
+        [
+          "silk_overlap|60299600|158648400|1c050aa6-6f8c-448e-9566-80ec80542aef|aec81bbc-9ad7-4e2a-b3ec-2e472156fcf1",
+          ""
+        ]
+      ],
       "meta": {
         "version": 2
       },
@@ -133,7 +146,7 @@
         "min_track_width": 0.0,
         "min_via_annular_width": 0.1,
         "min_via_diameter": 0.5,
-        "solder_mask_to_copper_clearance": 0.0,
+        "solder_mask_to_copper_clearance": 0.005,
         "use_height_for_length_calcs": true
       },
       "teardrop_options": [
@@ -480,14 +493,19 @@
     },
     "net_colors": null,
     "netclass_assignments": null,
-    "netclass_patterns": []
+    "netclass_patterns": [
+      {
+        "netclass": "Default",
+        "pattern": "A0-1"
+      }
+    ]
   },
   "pcbnew": {
     "last_paths": {
       "gencad": "",
       "idf": "",
       "netlist": "",
-      "plot": "",
+      "plot": "../GERBERS/",
       "pos_files": "",
       "specctra_dsn": "",
       "step": "",

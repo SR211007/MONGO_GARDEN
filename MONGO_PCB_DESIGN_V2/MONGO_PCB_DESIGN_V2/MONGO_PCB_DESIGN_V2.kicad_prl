@@ -97,19 +97,19 @@
       131,
       132,
       112,
-      112
+      344
     ],
     "custom_group_rules": [],
     "expanded_rows": [],
     "filter_by_net_name": true,
     "filter_by_netclass": true,
-    "filter_text": "",
+    "filter_text": "E",
     "group_by_constraint": false,
     "group_by_netclass": false,
     "show_unconnected_nets": false,
     "show_zero_pad_nets": false,
-    "sort_ascending": true,
-    "sorting_column": 0
+    "sort_ascending": false,
+    "sorting_column": 2
   },
   "open_jobsets": [],
   "project": {
