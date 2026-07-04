@@ -39,7 +39,8 @@ footer{border-top:1px solid var(--color-divider);padding-block:var(--space-10)} 
 <nav>
   <div class="container nav-inner">
     <a href="#" class="nav-logo">
-      <svg class="nav-logo-svg" viewBox="0 0 32 32" fill="none" aria-label="MONGO GARDEN logo">
+      <!--
+        <svg class="nav-logo-svg" viewBox="0 0 32 32" fill="none" aria-label="MONGO GARDEN logo">
         <rect width="32" height="32" rx="7" fill="var(--color-primary-highlight)"/>
         <path d="M9 23 C9 23 10 13 17 11 C17 11 14 18 21 16" stroke="var(--color-primary)" stroke-width="1.8" stroke-linecap="round" fill="none"/>
         <circle cx="22" cy="15" r="2" fill="var(--color-primary)" opacity="0.7"/>
@@ -47,13 +48,14 @@ footer{border-top:1px solid var(--color-divider);padding-block:var(--space-10)} 
         <circle cx="13" cy="19" r="1.2" fill="var(--color-accent)" opacity="0.8"/>
         <path d="M22 15 L25 15 L25 22 L19 22" stroke="var(--color-primary)" stroke-width="1.2" stroke-linecap="round" fill="none" opacity="0.5"/>
       </svg>
+      -->
       <span class="nav-brand">MONGO_GARDEN</span>
     </a>
     <div class="nav-links">
       <a href="#arquitectura">Arquitectura</a>
       <a href="#sensores">Sensores</a>
       <a href="#funciones">Funciones</a>
-      <a href="#versiones">Estado</a>
+      <a href="#versiones">Montaje</a>
     </div>
     <div class="nav-right">
       <button class="btn-toggle" data-theme-toggle aria-label="Cambiar tema">
@@ -69,7 +71,7 @@ footer{border-top:1px solid var(--color-divider);padding-block:var(--space-10)} 
       <div>
         <div class="hero-tag">Embedded IoT · Arduino MKR1000</div>
         <h1>Sistema de monitoreo<br><span>inteligente de jardín</span></h1>
-        <p class="hero-desc">MONGO GARDEN es una estación de monitoreo ambiental embebida en hardware propio. Mide hasta 30 canales de sensores, registra en SD, expone datos vía WiFi y WebSocket, y corre sobre un PCB diseñado desde cero.</p>
+        <p class="hero-desc">MONGO GARDEN es una estación de monitoreo embebida en hardware propio para un jardín vertical. Mide 30 canales de sensores de humedad del sustrato, humedad del aire, temperatura del aire, presión atmosférica, radiación UV, registra los datos en SD, expone datos vía WiFi y WebSocket, y corre sobre un PCB diseñado desde cero.</p>
         <div class="hero-meta">
           <span class="meta-chip">Arduino MKR1000</span>
           <span class="meta-chip">PlatformIO / C++</span>
@@ -94,7 +96,7 @@ footer{border-top:1px solid var(--color-divider);padding-block:var(--space-10)} 
     </div>
     <div class="arch-grid">
       <div class="arch-card reveal"><div class="arch-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg></div><h3>Microcontrolador</h3><p>Arduino MKR1000 con chip ATSAMW25. Combina ARM Cortex-M0+ con módulo WiFi integrado WINC1500. Operado bajo el framework PlatformIO.</p></div>
-      <div class="arch-card reveal"><div class="arch-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div><h3>Multiplexor 16 canales</h3><p>CD74HC4067 controlado con 4 pines digitales. Permite leer sensores de humedad de suelo agrupados en dos líneas analógicas con muy pocos recursos del microcontrolador.</p></div>
+      <div class="arch-card reveal"><div class="arch-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div><h3>Multiplexor 16 canales</h3><p>2 módulos CD74HC4067 controlados con 4 pines digitales. Permite leer sensores de humedad de suelo agrupados en dos líneas analógicas con muy pocos recursos del microcontrolador.</p></div>
       <div class="arch-card reveal"><div class="arch-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0"/></svg></div><h3>Conectividad WiFi</h3><p>Soporta modo cliente WiFi con WebSocket y también un Access Point propio con servidor HTTP. Eso le da operación local y remota según el escenario.</p></div>
       <div class="arch-card reveal"><div class="arch-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2"/><path d="M7 12h10M12 7v10"/></svg></div><h3>Almacenamiento SD</h3><p>Los datos se guardan en <code style="font-family:var(--font-mono);font-size:.85em;color:var(--color-primary)">data.txt</code> para conservar lecturas locales incluso cuando no hay red disponible.</p></div>
       <div class="arch-card reveal"><div class="arch-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><h3>Reloj en tiempo real</h3><p>El DS1302 aporta fecha y hora a cada registro. También existe un modo demo que sincroniza el reloj con la hora de compilación del firmware.</p></div>
@@ -111,29 +113,12 @@ footer{border-top:1px solid var(--color-divider);padding-block:var(--space-10)} 
     </div>
     <div class="sensors-grid">
       <div class="sensor-list reveal">
-        <div class="sensor-row"><div class="sensor-dot"></div><span class="sensor-name">DHT11 Interno</span><span class="sensor-tag">Temperatura / humedad</span></div>
-        <div class="sensor-row"><div class="sensor-dot"></div><span class="sensor-name">DHT11 Externo</span><span class="sensor-tag">Temperatura / humedad</span></div>
-        <div class="sensor-row"><div class="sensor-dot"></div><span class="sensor-name">BMP180 — Barómetro</span><span class="sensor-tag">Presión / altitud</span></div>
+        <div class="sensor-row"><div class="sensor-dot"></div><span class="sensor-name">DHT11 Interno</span><span class="sensor-tag">Temperatura / humedad interna del sistema</span></div>
+        <div class="sensor-row"><div class="sensor-dot"></div><span class="sensor-name">DHT11 Externo</span><span class="sensor-tag">Temperatura / humedad del aire ambiental</span></div>
+        <div class="sensor-row"><div class="sensor-dot"></div><span class="sensor-name">BMP180 — Barómetro</span><span class="sensor-tag">Presión / altitud del ambiente</span></div>
         <div class="sensor-row"><div class="sensor-dot"></div><span class="sensor-name">TSL2561 — Luxómetro</span><span class="sensor-tag">Luz ambiente</span></div>
         <div class="sensor-row"><div class="sensor-dot"></div><span class="sensor-name">Humedad de suelo × múltiples canales</span><span class="sensor-tag">Mux</span></div>
         <div class="sensor-row"><div class="sensor-dot"></div><span class="sensor-name">DS1302 — RTC</span><span class="sensor-tag">Timestamp</span></div>
-      </div>
-      <div class="code-block reveal">
-        <div class="code-header"><div class="code-dots"><div class="code-dot r"></div><div class="code-dot y"></div><div class="code-dot g"></div></div><span class="code-filename">MONGO_GARDEN_V1.cpp</span></div>
-        <div class="code-body"><pre><span class="cm">// Inicialización de sensores</span>
-<span class="fn">dhtexterno</span>.<span class="kw">begin</span>();
-<span class="fn">dhtinterno</span>.<span class="kw">begin</span>();
-<span class="fn">Rtcmod</span>.<span class="kw">Begin</span>();
-<span class="kw">bmp</span>.<span class="fn">begin</span>();
-<span class="kw">tsl</span>.<span class="fn">begin</span>();
-
-<span class="cm">// Clasificación de luz</span>
-<span class="kw">if</span> (event.light &lt; <span class="str">100</span>)
-  <span class="cm">→ NOCHE / Amanecer</span>
-<span class="kw">else if</span> (event.light &lt; <span class="str">10000</span>)
-  <span class="cm">→ NUBLADO</span>
-<span class="kw">else if</span> (event.light &lt; <span class="str">50000</span>)
-  <span class="cm">→ SOL DIRECTO</span></pre></div>
       </div>
     </div>
   </div>
@@ -142,17 +127,25 @@ footer{border-top:1px solid var(--color-divider);padding-block:var(--space-10)} 
   <div class="container">
     <div class="reveal">
       <p class="section-label">PCB del proyecto</p>
-      <h2 class="section-title">Diseño físico del módulo</h2>
-      <p class="section-body">Esta página ya muestra las dos imágenes reales de la PCB. La idea acá es enseñar la placa tal como está y dejar el foco en el hardware que sí puedes presentar ahora mismo.</p>
+      <h2 class="section-title">Diseño físico de la PCB que controla la lectura de los 30 canales analógicos</h2>
+      <p class="section-body">Aquí se pueden observar dos imágenes de la PCB diseñada en KiCad y el resultado despues de ser fabricada con JLCPCB.</p>
     </div>
     <div class="pcb-gallery reveal" style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-6);margin-top:var(--space-10);">
       <figure style="background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-4);box-shadow:var(--shadow-sm);">
-        <img src="image.png" alt="Vista principal de la PCB MONGO GARDEN con ruteo, conectores y zonas de montaje" width="568" height="611" loading="lazy" style="border-radius:calc(var(--radius-lg) - var(--space-4));border:1px solid var(--color-divider);width:100%;height:auto;">
+        <img src="image.png" alt="" width="568" height="611" loading="lazy" style="border-radius:calc(var(--radius-lg) - var(--space-4));border:1px solid var(--color-divider);width:100%;height:auto;">
+        <figcaption style="margin-top:var(--space-3);font-size:var(--text-sm);color:var(--color-text-muted);">Vista principal del diseño de la PCB con conectores, trazas y distribución general.</figcaption>
+      </figure>
+      <figure style="background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-4);box-shadow:var(--shadow-sm);">
+        <img src="image-2.png" alt="" width="569" height="605" loading="lazy" style="border-radius:calc(var(--radius-lg) - var(--space-4));border:1px solid var(--color-divider);width:100%;height:auto;">
+        <figcaption style="margin-top:var(--space-3);font-size:var(--text-sm);color:var(--color-text-muted);">Vista de la parte posterior.</figcaption>
+      </figure>
+      <figure style="background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-4);box-shadow:var(--shadow-sm);">
+        <img src="image-3.jpeg" alt="" width="568" height="611" loading="lazy" style="border-radius:calc(var(--radius-lg) - var(--space-4));border:1px solid var(--color-divider);width:100%;height:auto;">
         <figcaption style="margin-top:var(--space-3);font-size:var(--text-sm);color:var(--color-text-muted);">Vista principal de la PCB con conectores, trazas y distribución general.</figcaption>
       </figure>
       <figure style="background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-4);box-shadow:var(--shadow-sm);">
-        <img src="image-2.png" alt="Vista alternativa de la PCB MONGO GARDEN mostrando la otra cara del diseño" width="569" height="605" loading="lazy" style="border-radius:calc(var(--radius-lg) - var(--space-4));border:1px solid var(--color-divider);width:100%;height:auto;">
-        <figcaption style="margin-top:var(--space-3);font-size:var(--text-sm);color:var(--color-text-muted);">Segunda vista de la placa para mostrar mejor la otra cara del diseño.</figcaption>
+        <img src="image-4.jpeg" alt="" width="569" height="605" loading="lazy" style="border-radius:calc(var(--radius-lg) - var(--space-4));border:1px solid var(--color-divider);width:100%;height:auto;">
+        <figcaption style="margin-top:var(--space-3);font-size:var(--text-sm);color:var(--color-text-muted);">Vista de la parte posterior.</figcaption>
       </figure>
     </div>
   </div>
@@ -166,18 +159,18 @@ footer{border-top:1px solid var(--color-divider);padding-block:var(--space-10)} 
     </div>
     <div class="feat-table-wrap reveal">
       <table>
-        <thead><tr><th>Comando</th><th>Función</th><th>Descripción</th><th>Estado</th></tr></thead>
+        <thead><tr><th>Función</th><th>Descripción</th><th>Estado</th></tr></thead>
         <tbody>
-          <tr><td>1</td><td>leersensores()</td><td>Lee los canales del multiplexor con delay configurable</td><td><span class="status-ok">Activo</span></td></tr>
-          <tr><td>2</td><td>obtenerhora()</td><td>Captura timestamp del DS1302</td><td><span class="status-ok">Activo</span></td></tr>
-          <tr><td>3</td><td>imprimirhora()</td><td>Envía la última hora obtenida al Serial o WebSocket</td><td><span class="status-ok">Activo</span></td></tr>
-          <tr><td>5 / 6</td><td>humedaddht11()</td><td>Temperatura y humedad del DHT11 interno o externo</td><td><span class="status-ok">Activo</span></td></tr>
-          <tr><td>9</td><td>escribirDatos()</td><td>Guarda los valores actuales en data.txt con timestamp</td><td><span class="status-ok">Activo</span></td></tr>
-          <tr><td>10</td><td>barometro()</td><td>Temperatura, presión y altitud estimada</td><td><span class="status-ok">Activo</span></td></tr>
-          <tr><td>11</td><td>TSL2561()</td><td>Lectura de lux, clasificación de luz e índice UV aproximado</td><td><span class="status-ok">Activo</span></td></tr>
-          <tr><td>AP</td><td>startWebServerAP()</td><td>Crea un Access Point propio con servidor HTTP</td><td><span class="status-ok">Activo</span></td></tr>
-          <tr><td>WifiLab</td><td>WifiLab()</td><td>Conecta a red WiFi e inicia WebSocket</td><td><span class="status-ok">Activo</span></td></tr>
-          <tr><td>8</td><td>pingToHost()</td><td>Verifica conectividad de red con ping</td><td><span class="status-ok">Activo</span></td></tr>
+          <tr><td>leersensores()</td><td>Lee los canales del multiplexor con delay configurable</td><td><span class="status-ok">Activo</span></td></tr>
+          <tr><td>obtenerhora()</td><td>Captura timestamp del DS1302</td><td><span class="status-ok">Activo</span></td></tr>
+          <tr><td>imprimirhora()</td><td>Envía la última hora obtenida al Serial o WebSocket</td><td><span class="status-ok">Activo</span></td></tr>
+          <tr><td>humedaddht11()</td><td>Temperatura y humedad del DHT11 interno o externo</td><td><span class="status-ok">Activo</span></td></tr>
+          <tr><td>escribirDatos()</td><td>Guarda los valores actuales en data.txt con timestamp</td><td><span class="status-ok">Activo</span></td></tr>
+          <tr><td>barometro()</td><td>Temperatura, presión y altitud estimada</td><td><span class="status-ok">Activo</span></td></tr>
+          <tr><td>TSL2561()</td><td>Lectura de lux, clasificación de luz e índice UV aproximado</td><td><span class="status-ok">Activo</span></td></tr>
+          <tr><td>startWebServerAP()</td><td>Crea un Access Point propio con servidor HTTP</td><td><span class="status-ok">Activo</span></td></tr>
+          <tr><td>WifiLab()</td><td>Conecta a red WiFi e inicia WebSocket</td><td><span class="status-ok">Activo</span></td></tr>
+          <tr><td>pingToHost()</td><td>Verifica conectividad de red con ping</td><td><span class="status-ok">Activo</span></td></tr>
         </tbody>
       </table>
     </div>
@@ -187,22 +180,24 @@ footer{border-top:1px solid var(--color-divider);padding-block:var(--space-10)} 
 <section id="versiones">
   <div class="container">
     <div class="reveal">
-      <p class="section-label">Estado del proyecto</p>
-      <h2 class="section-title">Versión actualmente presentada</h2>
-      <p class="section-body">Esta presentación se centra solo en la PCB y el firmware que ya están listos para mostrarse. La presentación se centra en la PCB y el firmware que representan la versión actual del proyecto. También se dejó por fuera la sección de asignación de pines porque aquí no aporta valor visual ni técnico al enfoque de la página.</p>
+      <p class="section-label">Montaje integrado</p>
+      <h2 class="section-title">Versión actual</h2>
+      <p class="section-body">A continuación se muestra el montaje interior del módulo donde se pueden apreciar los diferentes componentes del proyecto en su posición final</p>
+    </div>
+    <div class="Montaje-gallery reveal" style="display:grid;grid-template-columns:1fr;gap:var(--space-6);margin-top:var(--space-10);">
+      <figure style="background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-4);box-shadow:var(--shadow-sm);">
+        <img src="image-5.jpeg" alt="" width="568" height="611" loading="lazy" style="border-radius:calc(var(--radius-lg) - var(--space-4));border:1px solid var(--color-divider);width:100%;height:auto;">
+        <figcaption style="margin-top:var(--space-3);font-size:var(--text-sm);color:var(--color-text-muted);">Vista superior del montaje.</figcaption>
+      </figure>
+      <figure style="background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-4);box-shadow:var(--shadow-sm);">
+        <img src="image-6.jpeg" alt="" width="569" height="605" loading="lazy" style="border-radius:calc(var(--radius-lg) - var(--space-4));border:1px solid var(--color-divider);width:100%;height:auto;">
+        <figcaption style="margin-top:var(--space-3);font-size:var(--text-sm);color:var(--color-text-muted);">Vista lateral.</figcaption>
+      </figure>
     </div>
     <div class="versions-grid">
       <div class="ver-card reveal">
-        <div class="ver-header"><span class="ver-badge v1">Versión mostrada</span><h3>MONGO GARDEN PCB V2</h3></div>
-        <div class="ver-body">
-          <ul class="ver-list" role="list">
-            <li>Versión actual del hardware presentada como PCB V2</li>
-            <li>Lectura multiplexada de sensores de humedad de suelo</li>
-            <li>Integración con DHT11, BMP180, TSL2561, RTC DS1302 y módulo SD</li>
-            <li>Comunicación por WiFi, Access Point y WebSocket</li>
-            <li>Base actual del proyecto para mostrar su estado real</li>
-          </ul>
-        </div>
+        <div class="ver-header"><span class="ver-badge v1">Versión mostrada</span><h3>MONGO GARDEN WebSite V1</h3></div>
+
       </div>
     </div>
   </div>
