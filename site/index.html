@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MONGO GARDEN — Sistema IoT de Monitoreo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root, [data-theme="light"] {
+  --color-bg:#f5f4ef; --color-surface:#f9f8f3; --color-surface-2:#fdfcf8; --color-surface-offset:#eceae2;
+  --color-divider:#d8d5cc; --color-border:#ccc9be; --color-text:#1a1c17; --color-text-muted:#6b6e60;
+  --color-text-faint:#b0b09a; --color-primary:#2d6a3f; --color-primary-hover:#1f5030; --color-primary-highlight:#c8dece;
+  --color-accent:#7aad5c; --shadow-sm:0 1px 3px oklch(0.2 0.02 140 / 0.08); --shadow-md:0 4px 16px oklch(0.2 0.02 140 / 0.10);
+  --shadow-lg:0 12px 40px oklch(0.2 0.02 140 / 0.14); --radius-sm:.375rem; --radius-md:.5rem; --radius-lg:.75rem; --radius-xl:1rem;
+  --space-1:.25rem; --space-2:.5rem; --space-3:.75rem; --space-4:1rem; --space-6:1.5rem; --space-8:2rem; --space-10:2.5rem; --space-12:3rem; --space-16:4rem; --space-20:5rem; --space-24:6rem;
+  --text-xs:clamp(.75rem,.7rem + .25vw,.875rem); --text-sm:clamp(.875rem,.8rem + .35vw,1rem); --text-base:clamp(1rem,.95rem + .25vw,1.125rem); --text-lg:clamp(1.125rem,1rem + .75vw,1.5rem); --text-xl:clamp(1.5rem,1.2rem + 1.25vw,2.25rem); --text-2xl:clamp(2rem,1.2rem + 2.5vw,3.5rem);
+  --font-display:'Space Grotesk',sans-serif; --font-mono:'Space Mono',monospace; --font-body:'Space Grotesk',sans-serif; --transition:180ms cubic-bezier(.16,1,.3,1); --content-default:1100px;
+}
+[data-theme="dark"] {
+  --color-bg:#0f110d; --color-surface:#141710; --color-surface-2:#191d14; --color-surface-offset:#1e231a; --color-divider:#262b21; --color-border:#323829;
+  --color-text:#d4d8c8; --color-text-muted:#7a8068; --color-text-faint:#4a5040; --color-primary:#5db87a; --color-primary-hover:#7dd494; --color-primary-highlight:#1e3324; --color-accent:#9ed67e;
+  --shadow-sm:0 1px 3px oklch(0 0 0 / .3); --shadow-md:0 4px 16px oklch(0 0 0 / .4); --shadow-lg:0 12px 40px oklch(0 0 0 / .5);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0} html{scroll-behavior:smooth;scroll-padding-top:var(--space-16);-webkit-font-smoothing:antialiased} body{min-height:100dvh;font-family:var(--font-body);font-size:var(--text-base);color:var(--color-text);background:var(--color-bg);line-height:1.65} img,svg{display:block;max-width:100%;height:auto} p,li{text-wrap:pretty;max-width:68ch} a,button,[role="button"]{transition:color var(--transition),background var(--transition),border-color var(--transition),box-shadow var(--transition),opacity var(--transition)} button{cursor:pointer;background:none;border:none} :focus-visible{outline:2px solid var(--color-primary);outline-offset:3px;border-radius:var(--radius-sm)} .container{max-width:var(--content-default);margin-inline:auto;padding-inline:var(--space-6)} @media(max-width:768px){.container{padding-inline:var(--space-4)}}
+nav{position:sticky;top:0;z-index:100;background:oklch(from var(--color-bg) l c h / .92);backdrop-filter:blur(16px);border-bottom:1px solid var(--color-divider)} .nav-inner{display:flex;align-items:center;justify-content:space-between;height:56px} .nav-logo{display:flex;align-items:center;gap:var(--space-3);text-decoration:none;color:var(--color-text)} .nav-logo-svg{width:32px;height:32px;flex-shrink:0} .nav-brand{font-family:var(--font-display);font-weight:700;font-size:var(--text-sm);letter-spacing:.04em} .nav-links{display:flex;align-items:center;gap:var(--space-6)} .nav-links a{font-size:var(--text-sm);color:var(--color-text-muted);text-decoration:none;font-weight:500} .nav-links a:hover{color:var(--color-primary)} .nav-right{display:flex;align-items:center;gap:var(--space-3)} .btn-toggle{display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:var(--radius-md);color:var(--color-text-muted);border:1px solid var(--color-border)} .btn-toggle:hover{color:var(--color-text);background:var(--color-surface-offset)} .btn-gh{display:flex;align-items:center;gap:var(--space-2);font-size:var(--text-sm);font-weight:600;font-family:var(--font-display);color:var(--color-primary);text-decoration:none;border:1px solid var(--color-primary);padding:var(--space-2) var(--space-4);border-radius:var(--radius-md)} .btn-gh:hover{background:var(--color-primary-highlight)} @media(max-width:640px){.nav-links{display:none}}
+.hero{padding-block:clamp(var(--space-16),8vw,var(--space-24));border-bottom:1px solid var(--color-divider);position:relative;overflow:hidden} .hero-grid{display:grid;grid-template-columns:1fr auto;gap:var(--space-12);align-items:center} @media(max-width:820px){.hero-grid{grid-template-columns:1fr}} .hero-tag{display:inline-flex;align-items:center;gap:var(--space-2);font-family:var(--font-mono);font-size:var(--text-xs);font-weight:700;color:var(--color-primary);background:var(--color-primary-highlight);padding:var(--space-1) var(--space-3);border-radius:9999px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:var(--space-4)} .hero h1{font-size:var(--text-2xl);font-weight:700;color:var(--color-text);margin-bottom:var(--space-4);line-height:1.1} .hero h1 span{color:var(--color-primary)} .hero-desc{font-size:var(--text-base);color:var(--color-text-muted);margin-bottom:var(--space-8);max-width:52ch} .hero-meta{display:flex;flex-wrap:wrap;gap:var(--space-4)} .meta-chip{display:flex;align-items:center;gap:var(--space-2);font-family:var(--font-mono);font-size:var(--text-xs);color:var(--color-text-muted);background:var(--color-surface-offset);border:1px solid var(--color-border);padding:var(--space-1) var(--space-3);border-radius:9999px} .meta-chip svg{width:13px;height:13px;flex-shrink:0} .hero-board{position:relative;width:240px;height:240px;flex-shrink:0} @media(max-width:820px){.hero-board{display:none}} .hero-board-ring{position:absolute;inset:0;border-radius:50%;border:1px solid oklch(from var(--color-primary) l c h / .2);animation:spin 20s linear infinite} .hero-board-ring-2{position:absolute;inset:20px;border-radius:50%;border:1px dashed oklch(from var(--color-primary) l c h / .15);animation:spin 12s linear infinite reverse} .hero-board-pcb{position:absolute;inset:40px;background:var(--color-surface);border-radius:var(--radius-lg);border:1px solid var(--color-border);box-shadow:var(--shadow-md);display:flex;align-items:center;justify-content:center} .hero-board-dot{width:8px;height:8px;border-radius:50%;background:var(--color-primary);box-shadow:0 0 12px oklch(from var(--color-primary) l c h / .6);animation:pulse 2s ease-in-out infinite} @keyframes spin{to{transform:rotate(360deg)}} @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.85)}}
+section{padding-block:clamp(var(--space-12),5vw,var(--space-20))} .section-label{font-family:var(--font-mono);font-size:var(--text-xs);font-weight:700;color:var(--color-primary);text-transform:uppercase;letter-spacing:.10em;margin-bottom:var(--space-3)} .section-title{font-size:var(--text-xl);font-weight:700;color:var(--color-text);margin-bottom:var(--space-4);line-height:1.1} .section-body{font-size:var(--text-base);color:var(--color-text-muted);max-width:60ch} .divider{border:none;border-top:1px solid var(--color-divider)}
+.arch-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(280px,100%),1fr));gap:var(--space-4);margin-top:var(--space-10)} .arch-card{background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-6);box-shadow:var(--shadow-sm);transition:box-shadow var(--transition),transform var(--transition)} .arch-card:hover{box-shadow:var(--shadow-md);transform:translateY(-2px)} .arch-icon{width:40px;height:40px;border-radius:var(--radius-md);background:var(--color-primary-highlight);display:flex;align-items:center;justify-content:center;margin-bottom:var(--space-4)} .arch-icon svg{width:20px;height:20px;color:var(--color-primary)} .arch-card h3{font-size:var(--text-base);font-weight:700;color:var(--color-text);margin-bottom:var(--space-2)} .arch-card p{font-size:var(--text-sm);color:var(--color-text-muted);line-height:1.6}
+.sensors-section{background:var(--color-surface);border-top:1px solid var(--color-divider);border-bottom:1px solid var(--color-divider)} .sensors-grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-12);align-items:start;margin-top:var(--space-10)} @media(max-width:720px){.sensors-grid{grid-template-columns:1fr}.pcb-gallery{grid-template-columns:1fr!important}} .sensor-list{display:flex;flex-direction:column;gap:var(--space-3)} .sensor-row{display:flex;align-items:center;gap:var(--space-4);padding:var(--space-4);background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius-md)} .sensor-row:hover{border-color:oklch(from var(--color-primary) l c h / .5)} .sensor-dot{width:8px;height:8px;border-radius:50%;background:var(--color-primary);flex-shrink:0} .sensor-name{font-size:var(--text-sm);font-weight:600;color:var(--color-text);flex:1} .sensor-tag{font-family:var(--font-mono);font-size:var(--text-xs);color:var(--color-primary);background:var(--color-primary-highlight);padding:2px 8px;border-radius:9999px} .code-block{background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius-lg);overflow:hidden} .code-header{display:flex;align-items:center;justify-content:space-between;padding:var(--space-3) var(--space-4);border-bottom:1px solid var(--color-divider);background:var(--color-surface-offset)} .code-filename{font-family:var(--font-mono);font-size:var(--text-xs);color:var(--color-text-muted)} .code-dots{display:flex;gap:var(--space-2)} .code-dot{width:10px;height:10px;border-radius:50%} .code-dot.r{background:#ef4444;opacity:.6} .code-dot.y{background:#f59e0b;opacity:.6} .code-dot.g{background:#22c55e;opacity:.6} .code-body{padding:var(--space-4);overflow-x:auto} .code-body pre{font-family:var(--font-mono);font-size:var(--text-xs);line-height:1.7;color:var(--color-text-muted)} .kw{color:#5db87a}.cm{color:#4a5040;font-style:italic}.str{color:#b5a36b}.fn{color:#7ab5e0}
+.feat-table-wrap{margin-top:var(--space-10);overflow-x:auto} table{width:100%;border-collapse:collapse} thead tr{background:var(--color-surface-offset)} th{text-align:left;font-family:var(--font-mono);font-size:var(--text-xs);font-weight:700;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:.07em;padding:var(--space-3) var(--space-4);border-bottom:1px solid var(--color-divider)} td{padding:var(--space-3) var(--space-4);font-size:var(--text-sm);border-bottom:1px solid oklch(from var(--color-divider) l c h / .5)} td:first-child{font-family:var(--font-mono);color:var(--color-primary);font-weight:700} tr:last-child td{border-bottom:none} tbody tr:hover{background:var(--color-surface-offset)} .status-ok{display:inline-flex;align-items:center;gap:5px;font-size:var(--text-xs);font-weight:600;color:#22c55e}.status-ok::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:#22c55e}.status-wip{display:inline-flex;align-items:center;gap:5px;font-size:var(--text-xs);font-weight:600;color:#f59e0b}.status-wip::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:#f59e0b}
+.versions-grid{display:grid;grid-template-columns:1fr;gap:var(--space-6);margin-top:var(--space-10)} .ver-card{border:1px solid var(--color-border);border-radius:var(--radius-lg);overflow:hidden;max-width:780px} .ver-header{padding:var(--space-6);border-bottom:1px solid var(--color-divider)} .ver-badge{font-family:var(--font-mono);font-size:var(--text-xs);font-weight:700;padding:2px 10px;border-radius:9999px;margin-bottom:var(--space-3);display:inline-block}.ver-badge.v1{background:var(--color-primary-highlight);color:var(--color-primary)} .ver-header h3{font-size:var(--text-lg);font-weight:700;color:var(--color-text)} .ver-body{padding:var(--space-6);background:var(--color-surface)} .ver-list{display:flex;flex-direction:column;gap:var(--space-2);list-style:none} .ver-list li{font-size:var(--text-sm);color:var(--color-text-muted);display:flex;align-items:flex-start;gap:var(--space-2)} .ver-list li::before{content:'→';color:var(--color-primary);font-family:var(--font-mono);margin-top:2px;flex-shrink:0}
+footer{border-top:1px solid var(--color-divider);padding-block:var(--space-10)} .footer-inner{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--space-4)} .footer-brand{font-family:var(--font-mono);font-size:var(--text-sm);color:var(--color-text-muted)} .footer-brand span{color:var(--color-primary)} .footer-links{display:flex;gap:var(--space-6)} .footer-links a{font-size:var(--text-sm);color:var(--color-text-muted);text-decoration:none} .footer-links a:hover{color:var(--color-primary)}
+.reveal{opacity:0;transform:translateY(18px);transition:opacity .55s ease,transform .55s ease}.reveal.visible{opacity:1;transform:none}@media(prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+<nav>
+  <div class="container nav-inner">
+    <a href="#" class="nav-logo">
+      <svg class="nav-logo-svg" viewBox="0 0 32 32" fill="none" aria-label="MONGO GARDEN logo">
+        <rect width="32" height="32" rx="7" fill="var(--color-primary-highlight)"/>
+        <path d="M9 23 C9 23 10 13 17 11 C17 11 14 18 21 16" stroke="var(--color-primary)" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+        <circle cx="22" cy="15" r="2" fill="var(--color-primary)" opacity="0.7"/>
+        <path d="M13 23 L13 19" stroke="var(--color-primary)" stroke-width="1.5" stroke-linecap="round"/>
+        <circle cx="13" cy="19" r="1.2" fill="var(--color-accent)" opacity="0.8"/>
+        <path d="M22 15 L25 15 L25 22 L19 22" stroke="var(--color-primary)" stroke-width="1.2" stroke-linecap="round" fill="none" opacity="0.5"/>
+      </svg>
+      <span class="nav-brand">MONGO_GARDEN</span>
+    </a>
+    <div class="nav-links">
+      <a href="#arquitectura">Arquitectura</a>
+      <a href="#sensores">Sensores</a>
+      <a href="#funciones">Funciones</a>
+      <a href="#versiones">Estado</a>
+    </div>
+    <div class="nav-right">
+      <button class="btn-toggle" data-theme-toggle aria-label="Cambiar tema">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+      <a href="https://github.com/SR211007/MONGO_GARDEN" target="_blank" rel="noopener noreferrer" class="btn-gh">GitHub</a>
+    </div>
+  </div>
+</nav>
+<section class="hero">
+  <div class="container">
+    <div class="hero-grid">
+      <div>
+        <div class="hero-tag">Embedded IoT · Arduino MKR1000</div>
+        <h1>Sistema de monitoreo<br><span>inteligente de jardín</span></h1>
+        <p class="hero-desc">MONGO GARDEN es una estación de monitoreo ambiental embebida en hardware propio. Mide hasta 30 canales de sensores, registra en SD, expone datos vía WiFi y WebSocket, y corre sobre un PCB diseñado desde cero.</p>
+        <div class="hero-meta">
+          <span class="meta-chip">Arduino MKR1000</span>
+          <span class="meta-chip">PlatformIO / C++</span>
+          <span class="meta-chip">30 canales analógicos</span>
+          <span class="meta-chip">WiFi + WebSocket</span>
+        </div>
+      </div>
+      <div class="hero-board" aria-hidden="true">
+        <div class="hero-board-ring"></div>
+        <div class="hero-board-ring-2"></div>
+        <div class="hero-board-pcb"><div class="hero-board-dot"></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+<section id="arquitectura">
+  <div class="container">
+    <div class="reveal">
+      <p class="section-label">Arquitectura del sistema</p>
+      <h2 class="section-title">Capas de hardware y software</h2>
+      <p class="section-body">El sistema combina sensado analógico multiplexado, almacenamiento local en SD, comunicación WiFi con servidor HTTP y WebSocket, y un reloj de tiempo real para timestamping preciso.</p>
+    </div>
+    <div class="arch-grid">
+      <div class="arch-card reveal"><div class="arch-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg></div><h3>Microcontrolador</h3><p>Arduino MKR1000 con chip ATSAMW25. Combina ARM Cortex-M0+ con módulo WiFi integrado WINC1500. Operado bajo el framework PlatformIO.</p></div>
+      <div class="arch-card reveal"><div class="arch-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div><h3>Multiplexor 16 canales</h3><p>CD74HC4067 controlado con 4 pines digitales. Permite leer sensores de humedad de suelo agrupados en dos líneas analógicas con muy pocos recursos del microcontrolador.</p></div>
+      <div class="arch-card reveal"><div class="arch-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0"/></svg></div><h3>Conectividad WiFi</h3><p>Soporta modo cliente WiFi con WebSocket y también un Access Point propio con servidor HTTP. Eso le da operación local y remota según el escenario.</p></div>
+      <div class="arch-card reveal"><div class="arch-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2"/><path d="M7 12h10M12 7v10"/></svg></div><h3>Almacenamiento SD</h3><p>Los datos se guardan en <code style="font-family:var(--font-mono);font-size:.85em;color:var(--color-primary)">data.txt</code> para conservar lecturas locales incluso cuando no hay red disponible.</p></div>
+      <div class="arch-card reveal"><div class="arch-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><h3>Reloj en tiempo real</h3><p>El DS1302 aporta fecha y hora a cada registro. También existe un modo demo que sincroniza el reloj con la hora de compilación del firmware.</p></div>
+      <div class="arch-card reveal"><div class="arch-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div><h3>PCB personalizado</h3><p>La placa integra conectores para sensores, relés de control y el resto de periféricos del sistema en un diseño hecho específicamente para este módulo.</p></div>
+    </div>
+  </div>
+</section>
+<hr class="divider">
+<section id="sensores" class="sensors-section">
+  <div class="container">
+    <div class="reveal">
+      <p class="section-label">Sensores integrados</p>
+      <h2 class="section-title">Percepción ambiental multicapa</h2>
+    </div>
+    <div class="sensors-grid">
+      <div class="sensor-list reveal">
+        <div class="sensor-row"><div class="sensor-dot"></div><span class="sensor-name">DHT11 Interno</span><span class="sensor-tag">Temperatura / humedad</span></div>
+        <div class="sensor-row"><div class="sensor-dot"></div><span class="sensor-name">DHT11 Externo</span><span class="sensor-tag">Temperatura / humedad</span></div>
+        <div class="sensor-row"><div class="sensor-dot"></div><span class="sensor-name">BMP180 — Barómetro</span><span class="sensor-tag">Presión / altitud</span></div>
+        <div class="sensor-row"><div class="sensor-dot"></div><span class="sensor-name">TSL2561 — Luxómetro</span><span class="sensor-tag">Luz ambiente</span></div>
+        <div class="sensor-row"><div class="sensor-dot"></div><span class="sensor-name">Humedad de suelo × múltiples canales</span><span class="sensor-tag">Mux</span></div>
+        <div class="sensor-row"><div class="sensor-dot"></div><span class="sensor-name">DS1302 — RTC</span><span class="sensor-tag">Timestamp</span></div>
+      </div>
+      <div class="code-block reveal">
+        <div class="code-header"><div class="code-dots"><div class="code-dot r"></div><div class="code-dot y"></div><div class="code-dot g"></div></div><span class="code-filename">MONGO_GARDEN_V1.cpp</span></div>
+        <div class="code-body"><pre><span class="cm">// Inicialización de sensores</span>
+<span class="fn">dhtexterno</span>.<span class="kw">begin</span>();
+<span class="fn">dhtinterno</span>.<span class="kw">begin</span>();
+<span class="fn">Rtcmod</span>.<span class="kw">Begin</span>();
+<span class="kw">bmp</span>.<span class="fn">begin</span>();
+<span class="kw">tsl</span>.<span class="fn">begin</span>();
+
+<span class="cm">// Clasificación de luz</span>
+<span class="kw">if</span> (event.light &lt; <span class="str">100</span>)
+  <span class="cm">→ NOCHE / Amanecer</span>
+<span class="kw">else if</span> (event.light &lt; <span class="str">10000</span>)
+  <span class="cm">→ NUBLADO</span>
+<span class="kw">else if</span> (event.light &lt; <span class="str">50000</span>)
+  <span class="cm">→ SOL DIRECTO</span></pre></div>
+      </div>
+    </div>
+  </div>
+</section>
+<section id="pcb-gallery" class="sensors-section">
+  <div class="container">
+    <div class="reveal">
+      <p class="section-label">PCB del proyecto</p>
+      <h2 class="section-title">Diseño físico del módulo</h2>
+      <p class="section-body">Esta página ya muestra las dos imágenes reales de la PCB. La idea acá es enseñar la placa tal como está y dejar el foco en el hardware que sí puedes presentar ahora mismo.</p>
+    </div>
+    <div class="pcb-gallery reveal" style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-6);margin-top:var(--space-10);">
+      <figure style="background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-4);box-shadow:var(--shadow-sm);">
+        <img src="image.jpg" alt="Vista principal de la PCB MONGO GARDEN con ruteo, conectores y zonas de montaje" width="568" height="611" loading="lazy" style="border-radius:calc(var(--radius-lg) - var(--space-4));border:1px solid var(--color-divider);width:100%;height:auto;">
+        <figcaption style="margin-top:var(--space-3);font-size:var(--text-sm);color:var(--color-text-muted);">Vista principal de la PCB con conectores, trazas y distribución general.</figcaption>
+      </figure>
+      <figure style="background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-4);box-shadow:var(--shadow-sm);">
+        <img src="image-2.jpg" alt="Vista alternativa de la PCB MONGO GARDEN mostrando la otra cara del diseño" width="569" height="605" loading="lazy" style="border-radius:calc(var(--radius-lg) - var(--space-4));border:1px solid var(--color-divider);width:100%;height:auto;">
+        <figcaption style="margin-top:var(--space-3);font-size:var(--text-sm);color:var(--color-text-muted);">Segunda vista de la placa para mostrar mejor la otra cara del diseño.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+<section id="funciones">
+  <div class="container">
+    <div class="reveal">
+      <p class="section-label">Interfaz de comandos</p>
+      <h2 class="section-title">Control por Serial y WebSocket</h2>
+      <p class="section-body">El sistema acepta comandos tanto por puerto Serial como por WebSocket. La misma interfaz funciona en modo local y en modo remoto.</p>
+    </div>
+    <div class="feat-table-wrap reveal">
+      <table>
+        <thead><tr><th>Comando</th><th>Función</th><th>Descripción</th><th>Estado</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>leersensores()</td><td>Lee los canales del multiplexor con delay configurable</td><td><span class="status-ok">Activo</span></td></tr>
+          <tr><td>2</td><td>obtenerhora()</td><td>Captura timestamp del DS1302</td><td><span class="status-ok">Activo</span></td></tr>
+          <tr><td>3</td><td>imprimirhora()</td><td>Envía la última hora obtenida al Serial o WebSocket</td><td><span class="status-ok">Activo</span></td></tr>
+          <tr><td>5 / 6</td><td>humedaddht11()</td><td>Temperatura y humedad del DHT11 interno o externo</td><td><span class="status-ok">Activo</span></td></tr>
+          <tr><td>9</td><td>escribirDatos()</td><td>Guarda los valores actuales en data.txt con timestamp</td><td><span class="status-ok">Activo</span></td></tr>
+          <tr><td>10</td><td>barometro()</td><td>Temperatura, presión y altitud estimada</td><td><span class="status-ok">Activo</span></td></tr>
+          <tr><td>11</td><td>TSL2561()</td><td>Lectura de lux, clasificación de luz e índice UV aproximado</td><td><span class="status-ok">Activo</span></td></tr>
+          <tr><td>AP</td><td>startWebServerAP()</td><td>Crea un Access Point propio con servidor HTTP</td><td><span class="status-ok">Activo</span></td></tr>
+          <tr><td>WifiLab</td><td>WifiLab()</td><td>Conecta a red WiFi e inicia WebSocket</td><td><span class="status-ok">Activo</span></td></tr>
+          <tr><td>8</td><td>pingToHost()</td><td>Verifica conectividad de red con ping</td><td><span class="status-ok">Activo</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+<hr class="divider">
+<section id="versiones">
+  <div class="container">
+    <div class="reveal">
+      <p class="section-label">Estado del proyecto</p>
+      <h2 class="section-title">Versión actualmente presentada</h2>
+      <p class="section-body">Esta presentación se centra solo en la PCB y el firmware que ya están listos para mostrarse. La presentación se centra en la PCB y el firmware que representan la versión actual del proyecto. También se dejó por fuera la sección de asignación de pines porque aquí no aporta valor visual ni técnico al enfoque de la página.</p>
+    </div>
+    <div class="versions-grid">
+      <div class="ver-card reveal">
+        <div class="ver-header"><span class="ver-badge v1">Versión mostrada</span><h3>MONGO GARDEN PCB V2</h3></div>
+        <div class="ver-body">
+          <ul class="ver-list" role="list">
+            <li>Versión actual del hardware presentada como PCB V2</li>
+            <li>Lectura multiplexada de sensores de humedad de suelo</li>
+            <li>Integración con DHT11, BMP180, TSL2561, RTC DS1302 y módulo SD</li>
+            <li>Comunicación por WiFi, Access Point y WebSocket</li>
+            <li>Base actual del proyecto para mostrar su estado real</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<footer>
+  <div class="container footer-inner">
+    <div class="footer-brand"><span>MONGO_GARDEN</span> · SR211007 · MIT License</div>
+    <div class="footer-links">
+      <a href="https://github.com/SR211007/MONGO_GARDEN" target="_blank" rel="noopener noreferrer">Repositorio</a>
+      <a href="https://github.com/SR211007/MONGO_GARDEN/blob/main/src/MONGO_GARDEN_V1.cpp" target="_blank" rel="noopener noreferrer">Código fuente</a>
+      <a href="https://github.com/SR211007/MONGO_GARDEN/tree/main/MONGO_PCB_DESIGN_V1" target="_blank" rel="noopener noreferrer">Diseño PCB</a>
+    </div>
+  </div>
+</footer>
+<script>
+(function(){const t=document.querySelector('[data-theme-toggle]'),r=document.documentElement;let d=r.getAttribute('data-theme')||'dark';function setTheme(theme){d=theme;r.setAttribute('data-theme',d);if(t)t.innerHTML=d==='dark'?'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>':'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';} setTheme(d); if(t)t.addEventListener('click',()=>setTheme(d==='dark'?'light':'dark'));})();
+(function(){const els=document.querySelectorAll('.reveal'); if(!('IntersectionObserver' in window)){els.forEach(e=>e.classList.add('visible'));return;} const obs=new IntersectionObserver((entries)=>{entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('visible');});},{threshold:.1,rootMargin:'0px 0px -40px 0px'}); els.forEach(e=>obs.observe(e));})();
+</script>
+</body>
+</html>
