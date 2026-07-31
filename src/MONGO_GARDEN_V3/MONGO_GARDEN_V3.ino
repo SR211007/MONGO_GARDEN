@@ -216,6 +216,7 @@ void serialRead()
 
 void handleTelemetryLoop()
 {
+  if (demoMode == 0) {return;}
   // Tiempo relativo (backup)
   unsigned long nowMillis = millis();
 
@@ -1499,4 +1500,26 @@ bool parseGardenSide(String sideText, GardenSide &side)
 
   return false;
 }
+
+void handlerError(String Message, String Topic, String Mode)
+{
+  if (Mode.equals("SERIAL_AND_MQTT"))
+  {
+    Serial.println("Error: " + Message);
+    mqttClient.publish(Topic, Message);
+    return;
+  }
+  if (Mode.equals("SERIAL"))
+  {
+    Serial.println("Error: " + Message);
+    return;
+  }
+  if (Mode.equals("MQTT"))
+  {
+    mqttClient.publish(Topic, Message);
+    return;
+  }
+
+}
+
 
