@@ -29,7 +29,6 @@
   enum GardenSide { RIGHT_SIDE = 0, LEFT_SIDE = 1, BOTH_SIDES = 2 };
   const int CS_PIN = 7;
 
-
 //startVars-
   Adafruit_BMP085 bmp;
     float barometricPressure;
@@ -50,10 +49,39 @@
     float externalAirTemp;
     float externalAirHumidity;
 
-
+  WiFiClient net;
   WiFiServer server(80);          // Servidor HTTP normal para cargar la web (Puerto 80)
   WebSocketsServer webSocket = WebSocketsServer(81); // Servidor WebSocket (Puerto 81)
 
+  MQTTClient mqttClient(256);
+    const char* MQTT_HOST     = "157.137.230.39";
+    const int   MQTT_PORT     = 1883;
+    const char* MQTT_USERNAME = "mkr1000-Main";
+    const char* MQTT_PASSWORD = "BDAFE5BE";
+
+    bool mqttConectado = false;
+    
+    unsigned long lastDhtPublishMillis  = 0;
+    unsigned long lastBmpPublishMillis  = 0;
+    unsigned long lastTslPublishMillis  = 0;
+    unsigned long lastSoilPublishMillis = 0;
+
+    const unsigned long DHT_INTERVAL_MS  = 30UL * 1000UL;  // 30 s
+    const unsigned long BMP_INTERVAL_MS  = 60UL * 1000UL;  // 60 s
+    const unsigned long TSL_INTERVAL_MS  = 60UL * 1000UL;  // 60 s
+    const unsigned long SOIL_INTERVAL_MS = 60UL * 1000UL;  // 60 s;
+
+    // Usaremos segundos del RTC como "tiempo base" cuando sea posible
+    long lastDhtPublishRtcSeconds  = -1;
+    long lastBmpPublishRtcSeconds  = -1;
+    long lastTslPublishRtcSeconds  = -1;
+    long lastSoilPublishRtcSeconds = -1;
+
+    const long DHT_INTERVAL_SEC  = 30;
+    const long BMP_INTERVAL_SEC  = 60;
+    const long TSL_INTERVAL_SEC  = 60;
+    const long SOIL_INTERVAL_SEC = 60;
+    String currentTimeSource = "";      // "RTC" o "MILLIS"
 
   Adafruit_TSL2561_Unified tsl = Adafruit_TSL2561_Unified(TSL2561_ADDR_FLOAT, 12345);
     bool TSL_ONLINE = false;
@@ -63,8 +91,8 @@
   
 
   
-  int humidityValuesRight[15];
-  int humidityValuesLeft[15];
+  int humidityValuesRight[16];
+  int humidityValuesLeft[16];
   
   
   int pingResult;
@@ -72,19 +100,21 @@
   String hostName = "www.google.com";
   bool wifiConectado = false;
   bool serverRunning = false;
+  char ssid[32] = "SANTIAGO";        // your network SSID (name)
+  char pass[64] = "43102996";    // your network password (use for WPA, or use as key for WEP)
+  /*
   char ssid[32] = "Semillero ASI";        // your network SSID (name)
-  char pass[64] = "semilleroasik601";    // your network password (use for WPA, or use as key for WEP)
+  char pass[64] = "semilleroasik601";   
+  */
   char ap_ssid[] = "MONGO_GARDEN";
   char ap_pass[] = "mongo_pwr";
   
 
-
   int demoMode;
-  //ab
-
+//end
 
 void setup() 
-  {
+{
   pinMode(DEMOPIN, INPUT);
   pinMode(RELAYR, OUTPUT);
   pinMode(RELAYL, OUTPUT);
@@ -110,6 +140,7 @@ void setup()
   //-------------------------------------------------------------------------------------------------
   Serial.begin(9600);
   delay(5000);
+  Serial.println("..--..--..--..");
   Serial.println("Serial inicializado");
   dhtexterno.begin();
   Serial.println("DHT11 Externo inicializado");
@@ -125,19 +156,36 @@ void setup()
 
   Serial.println("------FIN INICIO------");
   digitalWrite(RELAYS, LOW);
+  digitalWrite(RELAYR, LOW);
+  digitalWrite(RELAYL, LOW);
 
-
-  digitalWrite(RELAYS, HIGH);
-
+  if (!connectWiFi()) {
+    Serial.println("Advertencia: WiFi no disponible. Algunas funciones no funcionarán.");
   }
 
-void loop() 
-  {
-    serialRead();
+  connectMQTT();
+
+}
+
+void loop()
+{
+  // Si tienes MQTT y ya hay WiFi:
+  if (wifiConectado && WiFi.status() == WL_CONNECTED) {
+    if (!mqttClient.connected()) {
+      mqttConectado = false;
+      connectMQTT();
+    }
+
+    mqttClient.loop();
+    handleTelemetryLoop();
   }
+
+  // Siempre escuchas Serial para comandos, aunque no haya WiFi
+  serialRead();
+}
 
 void serialRead()
-  {
+{
     if (Serial.available() <= 0) return;
 
     String input = Serial.readStringUntil('\n');
@@ -148,6 +196,7 @@ void serialRead()
     if (handleSimpleCommand(input)) return;
     if (handleWiFiCommand(input)) return;
     if (handleSetTimeCommand(input)) return;
+    if (handleValveCommand(input)) return;
     if (handleSoilCommand(input)) return;
 
     Serial.println("Comando no reconocido. Usa uno de estos:");
@@ -159,11 +208,212 @@ void serialRead()
     Serial.println("  GET_TSL_DATA");
     Serial.println("  SET_TIME,2026,07,26,21,45,00");
     Serial.println("  SET_WiFi_PARAMETERS_\"SSID\"_\"PASSWORD\"");
-    Serial.println("  SET_AND_READ, BOTH_SIDES, 5, 3");
+    Serial.println("  OPEN_RIGHT_VALVE,2000");
+    Serial.println("  OPEN_LEFT_VALVE,2000");
+    Serial.println("  SET_AND_READ, BOTH_SIDES, 5, 5");
+    Serial.println("|---|");
+}
+
+void handleTelemetryLoop()
+{
+  // Tiempo relativo (backup)
+  unsigned long nowMillis = millis();
+
+  // Tiempo absoluto del RTC (si está disponible)
+  long nowRtcSeconds = getRtcSeconds();
+  bool rtcOk = (nowRtcSeconds >= 0);
+
+  // Publicar qué fuente de tiempo estamos usando
+  if (rtcOk) {
+    publishTimeSource("RTC");
+  } else {
+    publishTimeSource("MILLIS");
   }
 
+  // -----------------------------
+  // DHT interno / externo
+  // -----------------------------
+  if (rtcOk) {
+    if (lastDhtPublishRtcSeconds < 0 ||
+        (nowRtcSeconds - lastDhtPublishRtcSeconds) >= DHT_INTERVAL_SEC) {
+
+      publishDhtInternal();
+      publishDhtExternal();
+      lastDhtPublishRtcSeconds = nowRtcSeconds;
+    }
+  } else {
+    if ((nowMillis - lastDhtPublishMillis) >= DHT_INTERVAL_MS) {
+      publishDhtInternal();
+      publishDhtExternal();
+      lastDhtPublishMillis = nowMillis;
+    }
+  }
+
+  // -----------------------------
+  // BMP180
+  // -----------------------------
+  if (rtcOk) {
+    if (lastBmpPublishRtcSeconds < 0 ||
+        (nowRtcSeconds - lastBmpPublishRtcSeconds) >= BMP_INTERVAL_SEC) {
+
+      publishBmp();
+      lastBmpPublishRtcSeconds = nowRtcSeconds;
+    }
+  } else {
+    if ((nowMillis - lastBmpPublishMillis) >= BMP_INTERVAL_MS) {
+      publishBmp();
+      lastBmpPublishMillis = nowMillis;
+    }
+  }
+
+  // -----------------------------
+  // TSL2561
+  // -----------------------------
+  if (rtcOk) {
+    if (lastTslPublishRtcSeconds < 0 ||
+        (nowRtcSeconds - lastTslPublishRtcSeconds) >= TSL_INTERVAL_SEC) {
+
+      publishTsl();
+      lastTslPublishRtcSeconds = nowRtcSeconds;
+    }
+  } else {
+    if ((nowMillis - lastTslPublishMillis) >= TSL_INTERVAL_MS) {
+      publishTsl();
+      lastTslPublishMillis = nowMillis;
+    }
+  }
+
+  // -----------------------------
+  // Humedad de suelo (todos los slots)
+  // -----------------------------
+  if (rtcOk) {
+    if (lastSoilPublishRtcSeconds < 0 ||
+        (nowRtcSeconds - lastSoilPublishRtcSeconds) >= SOIL_INTERVAL_SEC) {
+
+      publishSoilAll();
+      lastSoilPublishRtcSeconds = nowRtcSeconds;
+    }
+  } else {
+    if ((nowMillis - lastSoilPublishMillis) >= SOIL_INTERVAL_MS) {
+      publishSoilAll();
+      lastSoilPublishMillis = nowMillis;
+    }
+  }
+}
+
+void mqttMessageReceived(String &topic, String &payload)
+{
+  Serial.print("MQTT mensaje recibido | Topic: ");
+  Serial.print(topic);
+  Serial.print(" | Payload: ");
+  Serial.println(payload);
+
+  payload.trim();
+
+  // -----------------------------------
+  // COMANDOS DE VÁLVULAS
+  // -----------------------------------
+
+  if (topic == "mongo_garden/cmd/openRightValve") {
+    if (!isValidInteger(payload)) {
+      Serial.println("Tiempo invalido para openRightValve");
+      return;
+    }
+
+    long timeValue = payload.toInt();
+    if (timeValue <= 0) {
+      Serial.println("Tiempo invalido. Debe ser mayor que 0");
+      return;
+    }
+
+    Serial.println(openRightValve((unsigned long)timeValue));
+    return;
+  }
+
+  if (topic == "mongo_garden/cmd/openLeftValve") {
+    if (!isValidInteger(payload)) {
+      Serial.println("Tiempo invalido para openLeftValve");
+      return;
+    }
+
+    long timeValue = payload.toInt();
+    if (timeValue <= 0) {
+      Serial.println("Tiempo invalido. Debe ser mayor que 0");
+      return;
+    }
+
+    Serial.println(openLeftValve((unsigned long)timeValue));
+    return;
+  }
+
+  // -----------------------------------
+  // COMANDOS DE TIEMPO / RTC
+  // -----------------------------------
+
+  if (topic == "mongo_garden/cmd/setTime") {
+    String result = handleSetTimePayload(payload);
+    Serial.println(result);
+    mqttClient.publish("mongo_garden/status/rtc", result);
+    return;
+  }
+
+  if (topic == "mongo_garden/cmd/syncRtc") {
+    // Usar la función que ya tienes
+    connectWiFi();  // asegurar WiFi
+    String result = syncRtcWithInternet();
+    Serial.println(result);
+    mqttClient.publish("mongo_garden/status/rtc", result);
+    return;
+  }
+
+  // -----------------------------------
+  // COMANDO DE PARÁMETROS WIFI
+  // -----------------------------------
+
+  if (topic == "mongo_garden/cmd/setWiFiParameters") {
+    String result = handleSetWiFiPayload(payload);
+    Serial.println(result);
+    mqttClient.publish("mongo_garden/status/wifi", result);
+
+    // Opcional: reconectar WiFi y MQTT con nuevas credenciales
+    wifiConectado = false;
+    connectWiFi();
+    mqttConectado = false;
+    connectMQTT();
+
+    return;
+  }
+
+  // -----------------------------------
+  // COMANDO DE LECTURA DE SUELO
+  // -----------------------------------
+
+  if (topic == "mongo_garden/cmd/readSoil") {
+    String result = handleReadSoilPayload(payload);
+    Serial.println(result);
+    mqttClient.publish("mongo_garden/telemetry/soil/onDemand", result);
+    return;
+  }
+
+  // -----------------------------------
+  // COMANDO GENÉRICO DE SISTEMA
+  // -----------------------------------
+
+  if (topic == "mongo_garden/cmd/system") {
+    // Aquí puedes implementar comandos tipo "REBOOT", "PING", etc.
+    // Por ahora solo lo echo al serial y status
+    Serial.print("Comando de sistema: ");
+    Serial.println(payload);
+    mqttClient.publish("mongo_garden/status/system", "SYSTEM_CMD:" + payload);
+    return;
+  }
+
+  // Si llega algo a un topic que no manejamos explícitamente
+  Serial.println("MQTT comando no reconocido en este topic");
+}
+
 bool handleSetTimeCommand(String input)
-  {
+{
     if (!input.startsWith("SET_TIME,")) {
       return false;
     }
@@ -221,10 +471,68 @@ bool handleSetTimeCommand(String input)
 
     Serial.println(setManualTime(year, month, day, hour, minute, second));
     return true;
+}
+
+String handleSetTimePayload(String payload)
+{
+  // Esperamos: YYYY,MM,DD,HH,MM,SS
+  int p1 = payload.indexOf(',');
+  int p2 = payload.indexOf(',', p1 + 1);
+  int p3 = payload.indexOf(',', p2 + 1);
+  int p4 = payload.indexOf(',', p3 + 1);
+  int p5 = payload.indexOf(',', p4 + 1);
+
+  if (p1 == -1 || p2 == -1 || p3 == -1 || p4 == -1 || p5 == -1) {
+    return "Formato invalido. Usa: YYYY,MM,DD,HH,MM,SS";
   }
 
+  String yearText   = payload.substring(p1 + 1, p2);
+  String monthText  = payload.substring(p2 + 1, p3);
+  String dayText    = payload.substring(p3 + 1, p4);
+  String hourText   = payload.substring(p4 + 1, p5);
+  String minuteText = payload.substring(p5 + 1);
+  String secondText = "";   // Si quieres segundo separado, ajusta
+
+  // Aquí puedo asumir que minuteText ya incluye segundos en otro formato,
+  // pero para mantenerlo simple uso 6 campos.
+
+  // Arreglo para 6 campos:
+  int p6 = payload.indexOf(',', p5 + 1);
+  if (p6 == -1) {
+    return "Formato invalido. Usa: YYYY,MM,DD,HH,MM,SS";
+  }
+
+  minuteText = payload.substring(p5 + 1, p6);
+  secondText = payload.substring(p6 + 1);
+
+  yearText.trim();
+  monthText.trim();
+  dayText.trim();
+  hourText.trim();
+  minuteText.trim();
+  secondText.trim();
+
+  if (!isValidInteger(yearText) ||
+      !isValidInteger(monthText) ||
+      !isValidInteger(dayText) ||
+      !isValidInteger(hourText) ||
+      !isValidInteger(minuteText) ||
+      !isValidInteger(secondText)) {
+    return "Formato invalido. Todos los campos deben ser numericos";
+  }
+
+  int year   = yearText.toInt();
+  int month  = monthText.toInt();
+  int day    = dayText.toInt();
+  int hour   = hourText.toInt();
+  int minute = minuteText.toInt();
+  int second = secondText.toInt();
+
+  return setManualTime(year, month, day, hour, minute, second);
+}
+
 bool handleSimpleCommand(String input)
-  {
+{
     if (input == "SYNC_RTC") {
       connectWiFi();
       Serial.println(syncRtcWithInternet());
@@ -257,10 +565,10 @@ bool handleSimpleCommand(String input)
     }
 
     return false;
-  }
+}
 
 bool handleSoilCommand(String input)
-  {
+{
     int firstComma  = input.indexOf(',');
     int secondComma = input.indexOf(',', firstComma + 1);
     int thirdComma  = input.indexOf(',', secondComma + 1);
@@ -333,14 +641,60 @@ bool handleSoilCommand(String input)
     int channelMultiplexor = channelText.toInt();
     int soilSlot = slotText.toInt();
 
+    digitalWrite(RELAYS, HIGH);
+    delay(500);
     Serial.println(getSoilHumidity(mode, side, channelMultiplexor, soilSlot));
+    delay(500);
+    digitalWrite(RELAYS, LOW);
     return true;
+}
+
+String handleReadSoilPayload(String payload)
+{
+  int firstComma  = payload.indexOf(',');
+  int secondComma = payload.indexOf(',', firstComma + 1);
+  int thirdComma  = payload.indexOf(',', secondComma + 1);
+
+  if (firstComma == -1 || secondComma == -1 || thirdComma == -1) {
+    return "Formato invalido. Usa: SET_AND_READ, BOTH_SIDES, channel, slot";
   }
 
+  String modeText    = payload.substring(0, firstComma);
+  String sideText    = payload.substring(firstComma + 1, secondComma);
+  String channelText = payload.substring(secondComma + 1, thirdComma);
+  String slotText    = payload.substring(thirdComma + 1);
 
+  modeText.trim();
+  sideText.trim();
+  channelText.trim();
+  slotText.trim();
+
+  FunctionMode mode;
+  GardenSide side;
+
+  if (!parseFunctionMode(modeText, mode)) {
+    return "functionMode invalido";
+  }
+
+  if (!parseGardenSide(sideText, side)) {
+    return "gardenSide invalido";
+  }
+
+  if (!isValidInteger(channelText)) {
+    return "channelMultiplexor invalido";
+  }
+  if (!isValidInteger(slotText)) {
+    return "soilSlot invalido";
+  }
+
+  int channelMultiplexor = channelText.toInt();
+  int soilSlot           = slotText.toInt();
+
+  return getSoilHumidity(mode, side, channelMultiplexor, soilSlot);
+}
 
 bool isValidInteger(String text)
-  {
+{
     if (text.length() == 0) return false;
 
     int startIndex = 0;
@@ -357,10 +711,10 @@ bool isValidInteger(String text)
     }
 
     return true;
-  }
+}
 
 bool handleWiFiCommand(String input)
-  {
+{
     const String prefix = "SET_WiFi_PARAMETERS_";
 
     // Si no empieza por el prefijo, no es este comando
@@ -412,15 +766,91 @@ bool handleWiFiCommand(String input)
     String result = setWiFiParameters(newSsid, newPass);
     Serial.println(result);
 
-    connectWiFi();
+    // Intentar conexión con las nuevas credenciales, pero UNA VEZ
+    if (!connectWiFi()) {
+      Serial.println("WiFi sigue sin conectar con las nuevas credenciales");
+    } else {
+      Serial.println("WiFi conectado con nuevas credenciales");
+    }
 
+    return true;
+}
+
+String handleSetWiFiPayload(String payload)
+{
+  int sep = payload.indexOf(';');
+  if (sep == -1) {
+    return "Formato invalido. Usa: SSID;PASSWORD";
+  }
+
+  String newSsid = payload.substring(0, sep);
+  String newPass = payload.substring(sep + 1);
+
+  newSsid.trim();
+  newPass.trim();
+
+  return setWiFiParameters(newSsid, newPass);
+}
+
+bool handleValveCommand(String input)
+{
+  String commandPrefix = "";
+  bool openRight = false;
+  bool openLeft = false;
+
+  // Detectar cuál de los dos comandos llegó
+  if (input.startsWith("OPEN_RIGHT_VALVE,")) {
+    commandPrefix = "OPEN_RIGHT_VALVE,";
+    openRight = true;
+  }
+  else if (input.startsWith("OPEN_LEFT_VALVE,")) {
+    commandPrefix = "OPEN_LEFT_VALVE,";
+    openLeft = true;
+  }
+  else {
+    return false;
+  }
+
+  // Extraer el tiempo después de la coma
+  String timeText = input.substring(commandPrefix.length());
+  timeText.trim();
+
+  // Validar que no esté vacío
+  if (timeText.length() == 0) {
+    Serial.println("Formato invalido. Usa: OPEN_RIGHT_VALVE,2000");
     return true;
   }
 
+  // Validar que sea entero
+  if (!isValidInteger(timeText)) {
+    Serial.println("Tiempo invalido");
+    return true;
+  }
 
+  long timeValue = timeText.toInt();
+
+  // Validar rango lógico
+  if (timeValue <= 0) {
+    Serial.println("Tiempo invalido. Debe ser mayor que 0");
+    return true;
+  }
+
+  // Ejecutar la función correspondiente
+  if (openRight) {
+    Serial.println(openRightValve((unsigned long)timeValue));
+    return true;
+  }
+
+  if (openLeft) {
+    Serial.println(openLeftValve((unsigned long)timeValue));
+    return true;
+  }
+
+  return true;
+}
 
 String getSoilHumidity(FunctionMode functionMode, GardenSide gardenSide, int channelMultiplexor, int soilSlot)
-  {
+{
     if (channelMultiplexor < 0 || channelMultiplexor > 15) {return "Invalid channelMultiplexor value";}
     if (soilSlot < 0 || soilSlot > 15) {return "Invalid soilSlot value";}
 
@@ -443,13 +873,12 @@ String getSoilHumidity(FunctionMode functionMode, GardenSide gardenSide, int cha
         output += "L" + String(soilSlot) + ": " + String(humidityValuesLeft[soilSlot]);
       }
     }
-
+    setMultiplexerChannel(0);
     return output;
-  }
-
+}
 
 String setMultiplexerChannel(int channel)
-  {
+{
     if (channel < 0 || channel > 15) 
       {
         digitalWrite(EN, HIGH);
@@ -464,10 +893,10 @@ String setMultiplexerChannel(int channel)
     digitalWrite(S3, (channel & 0x08) ? HIGH : LOW);
 
     return "Canal " + String(channel) + " seleccionado";
-  }
+}
 
 String readRightSensors(int slot)
- {
+{
   if (slot < 0 || slot > 15) 
     {
      return "Slot " + String(slot) + " invalido";
@@ -477,10 +906,10 @@ String readRightSensors(int slot)
   humidityValuesRight[slot] = analogRead(SIG1);
   String outputMessage = String("R")+String(slot)+String(": ")+String(humidityValuesRight[slot]);
   return outputMessage;
- }
+}
 
 String readLeftSensors(int slot)
- {
+{
   if (slot < 0 || slot > 15) 
     {
      return "Slot " + String(slot) + " invalido";
@@ -490,16 +919,31 @@ String readLeftSensors(int slot)
   humidityValuesLeft[slot] = analogRead(SIG2);
   String outputMessage = String("L")+String(slot)+String(": ")+String(humidityValuesLeft[slot]);
   return outputMessage;
- }
+}
 
 String getTime()
-  {
+{
   RtcDateTime ahora = Rtcmod.GetDateTime();
   return dateTime = (String(ahora.Day())+"/"+String(ahora.Month())+"/"+String(ahora.Year())+"||"+String(ahora.Hour())+":"+String(ahora.Minute())+":"+String(ahora.Second())+",");
+}
+
+long getRtcSeconds()
+{
+  if (!Rtcmod.IsDateTimeValid()) {
+    return -1;  // indicador de que el RTC no sirve
   }
 
+  RtcDateTime now = Rtcmod.GetDateTime();
+
+  long seconds = (long)now.Hour() * 3600L +
+                 (long)now.Minute() * 60L +
+                 (long)now.Second();
+
+  return seconds;
+}
+
 String setManualTime(int year, int month, int day, int hour, int minute, int second)
-  {
+{
     // Validaciones básicas de rango
     if (year < 2000 || year > 2099) return "Year invalido";
     if (month < 1 || month > 12) return "Month invalido";
@@ -530,10 +974,10 @@ String setManualTime(int year, int month, int day, int hour, int minute, int sec
           String(now.Hour()) + ":" +
           String(now.Minute()) + ":" +
           String(now.Second());
-  }
+}
 
 String syncRtcWithInternet()
-  {
+{
     const long utcOffsetSeconds = -5L * 3600L;   // Colombia UTC-5
 
     if (WiFi.status() != WL_CONNECTED) {
@@ -566,26 +1010,109 @@ String syncRtcWithInternet()
           String(internetTime.Hour()) + ":" +
           String(internetTime.Minute()) + ":" +
           String(internetTime.Second());
+}
+
+bool connectWiFi()
+{
+  // Si ya está conectado, no hacer nada
+  if (WiFi.status() == WL_CONNECTED) {
+    wifiConectado = true;
+    return true;
   }
 
-void connectWiFi()
-  {
-    if (WiFi.status() == WL_CONNECTED) return;
+  Serial.print("Conectando a WiFi");
 
-    Serial.print("Conectando a WiFi");
-    while (WiFi.begin(ssid, pass) != WL_CONNECTED) {
-      Serial.print(".");
-      delay(3000);
+  const int maxRetries   = 5;
+  const int retryDelayMs = 3000;
+  int retryCount         = 0;
+
+  while (retryCount < maxRetries) {
+    WiFi.begin(ssid, pass);
+
+    unsigned long startAttempt = millis();
+    while (millis() - startAttempt < 5000) {
+      if (WiFi.status() == WL_CONNECTED) {
+        Serial.println();
+        Serial.println("WiFi conectado");
+        Serial.print("IP: ");
+        Serial.println(WiFi.localIP());
+
+        wifiConectado = true;
+        return true;
+      }
+      delay(100);
     }
 
-    Serial.println();
-    Serial.println("WiFi conectado");
-    Serial.print("IP: ");
-    Serial.println(WiFi.localIP());
+    Serial.print(".");
+    retryCount++;
+    delay(retryDelayMs);
   }
 
+  Serial.println();
+  Serial.println("No se pudo conectar a la red WiFi.");
+  Serial.print("Estado WiFi: ");
+  Serial.println(WiFi.status());
+
+  wifiConectado = false;
+  return false;
+}
+
+void connectMQTT()
+{
+  // Si ya estamos conectados y el cliente sigue vivo, no hacer nada
+  if (mqttConectado && mqttClient.connected()) {
+    return;
+  }
+
+  // Si no hay WiFi, no intentes conectar MQTT aquí
+  if (!wifiConectado || WiFi.status() != WL_CONNECTED) {
+    Serial.println("No se puede conectar a MQTT: WiFi no disponible");
+    mqttConectado = false;
+    return;
+  }
+
+  Serial.print("Conectando a MQTT en ");
+  Serial.print(MQTT_HOST);
+  Serial.print(":");
+  Serial.println(MQTT_PORT);
+
+  mqttClient.begin(MQTT_HOST, MQTT_PORT, net);
+  mqttClient.onMessage(mqttMessageReceived);
+
+  int retryCount  = 0;
+  const int maxRetries = 5;
+
+  while (!mqttClient.connect("mongo_garden_mkr1000", MQTT_USERNAME, MQTT_PASSWORD) &&
+         retryCount < maxRetries) {
+    Serial.print("Intento MQTT ");
+    Serial.print(retryCount + 1);
+    Serial.println(" fallido. Reintentando en 2 segundos...");
+    retryCount++;
+    delay(2000);
+  }
+
+  if (!mqttClient.connected()) {
+    Serial.println("No se pudo conectar al broker MQTT");
+    mqttConectado = false;
+    return;
+  }
+
+  Serial.println("MQTT conectado");
+
+  mqttClient.subscribe("mongo_garden/cmd/openRightValve");
+  mqttClient.subscribe("mongo_garden/cmd/openLeftValve");
+  mqttClient.subscribe("mongo_garden/cmd/syncRtc");
+  mqttClient.subscribe("mongo_garden/cmd/setTime");
+  mqttClient.subscribe("mongo_garden/cmd/setWiFiParameters");
+  mqttClient.subscribe("mongo_garden/cmd/readSoil");
+  mqttClient.subscribe("mongo_garden/cmd/system");
+
+  mqttConectado = true;
+  mqttClient.publish("mongo_garden/status/system", "MQTT_CONNECTED");
+}
+
 String setWiFiParameters(String newSsid, String newPass)
-  {
+{
     newSsid.trim();
     newPass.trim();
 
@@ -607,10 +1134,10 @@ String setWiFiParameters(String newSsid, String newPass)
     wifiConectado = false;
 
     return "WiFi parameters actualizados | SSID: " + newSsid + " | PASSWORD: " + newPass;
-  }
+}
 
 String getBarometricPressure()
-  {
+{
     if (BMP_ONLINE == false) 
     {
     return "Error en BMP085"; 
@@ -620,10 +1147,10 @@ String getBarometricPressure()
   barometerAirTemperature = bmp.readTemperature();
     
   return "Presión atmosférica: " + String(barometricPressure) + " Pa. | Temperatura del aire: " + String(barometerAirTemperature) + "° Celcius.";
-  }
+}
 
 String getInternalTemperature()
-  {
+{
   Serial.println("Obteniendo datos...");
   delay(2000); // El DHT11 requiere un intervalo de 1-2 segundos entre lecturas
 
@@ -638,10 +1165,10 @@ String getInternalTemperature()
 
   return "La temperatura interna del módulo de comando es: " + String(temperatura) + "° Celcius, la humedad interna del módulo es: " + String(humedad) + " RH.";
   
-  }
+}
 
 String getExternalTemperature()
-  {
+{
   Serial.println("Obteniendo datos...");
   delay(2000); // El DHT11 requiere un intervalo de 1-2 segundos entre lecturas
 
@@ -656,10 +1183,10 @@ String getExternalTemperature()
 
   return "La temperatura del aire es aproximadamente: " + String(temperatura) + "° Celcius, la humedad exterior aproximada es: " + String(humedad) + " RH.";
   
-  }
+}
 
 String getTSL2561() 
-  {
+{
     if (TSL_ONLINE == false)
     {
       return "Error en TSL2561";
@@ -690,4 +1217,286 @@ String getTSL2561()
   return "Luz exterior: " + String(event.light, 1) + " lux\n" +
          clasificacion + Nota + "\n" +
          "Índice UV aproximado: " + String(uvIndex, 1) + "\n---";
+}
+
+String openRightValve(unsigned long time)
+{
+  if (time == 0) {
+    return "Tiempo invalido";
   }
+
+  analogWrite(RELAYR, 1023);
+  delay(time);
+  analogWrite(RELAYR, LOW);
+
+  return "Valvula derecha abierta por " + String(time) + " ms";
+}
+
+String openLeftValve(unsigned long time)
+{
+  if (time == 0) {
+    return "Tiempo invalido";
+  }
+
+  analogWrite(RELAYL, 1023);
+  delay(time);
+  analogWrite(RELAYL, LOW);
+
+  return "Valvula izquierda abierta por " + String(time) + " ms";
+}
+
+void publishDhtInternal()
+{
+  float h = dhtinterno.readHumidity();
+  float t = dhtinterno.readTemperature();      // °C
+  float f = dhtinterno.readTemperature(true);  // °F
+
+  if (isnan(h) || isnan(t) || isnan(f)) {
+    Serial.println("Error leyendo DHT interno");
+    return;
+  }
+
+  String payload = "T=" + String(t, 1) + "C," +
+                   "F=" + String(f, 1) + "F," +
+                   "H=" + String(h, 1) + "%";
+
+  Serial.print("MQTT publish DHT interno: ");
+  Serial.println(payload);
+
+  mqttClient.publish("mongo_garden/telemetry/dht/internal", payload);
+}
+
+void publishDhtExternal()
+{
+  float h = dhtexterno.readHumidity();
+  float t = dhtexterno.readTemperature();      // °C
+  float f = dhtexterno.readTemperature(true);  // °F
+
+  if (isnan(h) || isnan(t) || isnan(f)) {
+    Serial.println("Error leyendo DHT externo");
+    return;
+  }
+
+  String payload = "T=" + String(t, 1) + "C," +
+                   "F=" + String(f, 1) + "F," +
+                   "H=" + String(h, 1) + "%";
+
+  Serial.print("MQTT publish DHT externo: ");
+  Serial.println(payload);
+
+  mqttClient.publish("mongo_garden/telemetry/dht/external", payload);
+}
+
+void publishBmp()
+{
+  // Si por alguna razón no está inicializado, no hacemos nada
+  if (BMP_ONLINE == false) {
+    Serial.println("BMP180 no inicializado, no se publica");
+    return;
+  }
+
+  float temperature = bmp.readTemperature();      // °C
+  int32_t pressure  = bmp.readPressure();         // Pa
+  float altitude    = bmp.readAltitude();         // m
+
+  String payload = "T=" + String(temperature, 1) + "C," +
+                   "P=" + String(pressure) + "Pa," +
+                   "Alt=" + String(altitude, 1) + "m";
+
+  Serial.print("MQTT publish BMP180: ");
+  Serial.println(payload);
+
+  mqttClient.publish("mongo_garden/telemetry/bmp", payload);
+}  
+
+void publishTsl()
+{
+  if (TSL_ONLINE == false)
+    {
+      Serial.println("TSL2561 no inicializado");
+    }
+  
+  String Nota = "";
+  sensors_event_t event;
+  tsl.getEvent(&event);
+  
+  if (String(event.light,1) == "65536.0" ){
+      Nota = " - Posible falla del sensor.";
+    }
+
+  String payload = "LUX=" + String(event.light, 1);
+
+  Serial.print("MQTT publish TSL2561: ");
+  Serial.println(payload);
+
+  mqttClient.publish("mongo_garden/telemetry/tsl", payload);
+}
+
+void publishTimeSource(const String &source)
+{
+  // Solo publicar si cambió
+  if (source == currentTimeSource) {
+    return;
+  }
+
+  currentTimeSource = source;
+
+  Serial.print("MQTT publish Time Source: ");
+  Serial.println(currentTimeSource);
+
+  mqttClient.publish("mongo_garden/status/timeSource", currentTimeSource);
+}
+
+void publishSoilRight(int slot)
+{
+  if (slot < 0 || slot > 15) {
+    Serial.println("Slot de suelo derecho invalido");
+    return;
+  }
+
+  // Medimos ambos lados a través de la función maestra
+  String result = measureSoilSlot(slot);
+
+  Serial.print("measureSoilSlot RIGHT/LEFT, slot ");
+  Serial.print(slot);
+  Serial.print(" → ");
+  Serial.println(result);
+
+  int valueRight = humidityValuesRight[slot];
+
+  String topic   = "mongo_garden/telemetry/soil/rightside/" + String(slot);
+  String payload = String(valueRight);
+
+  Serial.print("MQTT publish Soil Right [");
+  Serial.print(slot);
+  Serial.print("]: ");
+  Serial.println(payload);
+
+  mqttClient.publish(topic, payload);
+}
+
+void publishSoilLeft(int slot)
+{
+  if (slot < 0 || slot > 15) {
+    Serial.println("Slot de suelo izquierdo invalido");
+    return;
+  }
+
+  // Medimos ambos lados a través de la función maestra
+  String result = measureSoilSlot(slot);
+
+  Serial.print("measureSoilSlot RIGHT/LEFT, slot ");
+  Serial.print(slot);
+  Serial.print(" → ");
+  Serial.println(result);
+
+  int valueLeft = humidityValuesLeft[slot];
+
+  String topic   = "mongo_garden/telemetry/soil/leftside/" + String(slot);
+  String payload = String(valueLeft);
+
+  Serial.print("MQTT publish Soil Left [");
+  Serial.print(slot);
+  Serial.print("]: ");
+  Serial.println(payload);
+
+  mqttClient.publish(topic, payload);
+}
+
+void publishSoilAll()
+{
+  for (int slot = 0; slot < 16; slot++) {
+    // Medir ambos lados usando la función maestra
+    String result = measureSoilSlot(slot);
+
+    Serial.print("[Telemetry] soil slot ");
+    Serial.print(slot);
+    Serial.print(" → ");
+    Serial.println(result);
+
+    // Después de measureSoilSlot, los arrays humidityValuesRight/Left
+    // ya deberían estar actualizados por getSoilHumidity()
+    String topicRight = "mongo_garden/telemetry/soil/rightside/" + String(slot);
+    String topicLeft  = "mongo_garden/telemetry/soil/leftside/" + String(slot);
+
+    String payloadRight = String(humidityValuesRight[slot]);
+    String payloadLeft  = String(humidityValuesLeft[slot]);
+
+    Serial.print("MQTT publish Soil Right [");
+    Serial.print(slot);
+    Serial.print("]: ");
+    Serial.println(payloadRight);
+
+    Serial.print("MQTT publish Soil Left [");
+    Serial.print(slot);
+    Serial.print("]: ");
+    Serial.println(payloadLeft);
+
+    mqttClient.publish(topicRight, payloadRight);
+    mqttClient.publish(topicLeft,  payloadLeft);
+  }
+}
+
+String measureSoilSlot(int slot)
+{
+  if (slot < 0 || slot > 15) {
+    return "Slot " + String(slot) + " invalido";
+  }
+
+  // Activar relé maestro como en handleSoilCommand
+  digitalWrite(RELAYS, HIGH);
+  delay(500);
+
+  // Usar la función maestra con los mismos parámetros que el comando bueno
+  FunctionMode mode   = SET_AND_READ;
+  GardenSide  side    = BOTH_SIDES;
+  int         channel = slot;   // asumiendo canal == slot
+
+  String result = getSoilHumidity(mode, side, channel, slot);
+
+  delay(500);
+  digitalWrite(RELAYS, LOW);
+
+  return result;
+}
+
+bool parseFunctionMode(String modeText, FunctionMode &mode)
+{
+  modeText.trim();
+
+  if (modeText == "SET_AND_READ") {
+    mode = SET_AND_READ;
+    return true;
+  }
+  if (modeText == "SET_ONLY") {
+    mode = SET_ONLY;
+    return true;
+  }
+  if (modeText == "READ_ONLY") {
+    mode = READ_ONLY;
+    return true;
+  }
+
+  return false;
+}
+
+bool parseGardenSide(String sideText, GardenSide &side)
+{
+  sideText.trim();
+
+  if (sideText == "RIGHT_SIDE") {
+    side = RIGHT_SIDE;
+    return true;
+  }
+  if (sideText == "LEFT_SIDE") {
+    side = LEFT_SIDE;
+    return true;
+  }
+  if (sideText == "BOTH_SIDES") {
+    side = BOTH_SIDES;
+    return true;
+  }
+
+  return false;
+}
+
