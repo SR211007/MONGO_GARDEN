@@ -66,10 +66,10 @@
     unsigned long lastTslPublishMillis  = 0;
     unsigned long lastSoilPublishMillis = 0;
 
-    const unsigned long DHT_INTERVAL_MS  = 30UL * 1000UL;  // 30 s
-    const unsigned long BMP_INTERVAL_MS  = 60UL * 1000UL;  // 60 s
-    const unsigned long TSL_INTERVAL_MS  = 60UL * 1000UL;  // 60 s
-    const unsigned long SOIL_INTERVAL_MS = 60UL * 1000UL;  // 60 s;
+    const unsigned long DHT_INTERVAL_MS  = 60UL * 1000UL;  // 30 s
+    const unsigned long BMP_INTERVAL_MS  = 1800UL * 1000UL;  // 60 s
+    const unsigned long TSL_INTERVAL_MS  = 1800UL * 1000UL;  // 60 s
+    const unsigned long SOIL_INTERVAL_MS = 3600UL * 1000UL;  // 60 s;
 
     // Usaremos segundos del RTC como "tiempo base" cuando sea posible
     long lastDhtPublishRtcSeconds  = -1;
@@ -77,10 +77,10 @@
     long lastTslPublishRtcSeconds  = -1;
     long lastSoilPublishRtcSeconds = -1;
 
-    const long DHT_INTERVAL_SEC  = 30;
-    const long BMP_INTERVAL_SEC  = 60;
-    const long TSL_INTERVAL_SEC  = 60;
-    const long SOIL_INTERVAL_SEC = 60;
+    const long DHT_INTERVAL_SEC  = 60;
+    const long BMP_INTERVAL_SEC  = 1800;
+    const long TSL_INTERVAL_SEC  = 1800;
+    const long SOIL_INTERVAL_SEC = 3600;
     String currentTimeSource = "";      // "RTC" o "MILLIS"
 
   Adafruit_TSL2561_Unified tsl = Adafruit_TSL2561_Unified(TSL2561_ADDR_FLOAT, 12345);
@@ -153,7 +153,7 @@ void setup()
   if (!(SD.begin(CS_PIN))) {Serial.println("Error inicializando modulo SD");} else { Serial.println("Modulo SD inicializado");}
   demoMode = digitalRead(DEMOPIN);
   if (demoMode == 1) {Serial.println("DEMO MODE ACTIVE");}
-
+  Serial.println("Version - 202608010241");
   Serial.println("------FIN INICIO------");
   digitalWrite(RELAYS, LOW);
   digitalWrite(RELAYR, LOW);
@@ -216,6 +216,7 @@ void serialRead()
 
 void handleTelemetryLoop()
 {
+  demoMode = digitalRead(DEMOPIN);
   if (demoMode == 0) {return;}
   // Tiempo relativo (backup)
   unsigned long nowMillis = millis();
@@ -304,113 +305,321 @@ void handleTelemetryLoop()
 
 void mqttMessageReceived(String &topic, String &payload)
 {
+  payload.trim();
+
   Serial.print("MQTT mensaje recibido | Topic: ");
   Serial.print(topic);
   Serial.print(" | Payload: ");
   Serial.println(payload);
 
-  payload.trim();
-
-  // -----------------------------------
+  // ===================================
   // COMANDOS DE VÁLVULAS
-  // -----------------------------------
+  // ===================================
 
   if (topic == "mongo_garden/cmd/openRightValve") {
     if (!isValidInteger(payload)) {
-      Serial.println("Tiempo invalido para openRightValve");
+      mqttClient.publish(
+        "mongo_garden/status/system",
+        "ERROR: tiempo invalido para openRightValve"
+      );
       return;
     }
 
     long timeValue = payload.toInt();
+
     if (timeValue <= 0) {
-      Serial.println("Tiempo invalido. Debe ser mayor que 0");
+      mqttClient.publish(
+        "mongo_garden/status/system",
+        "ERROR: tiempo debe ser mayor que 0"
+      );
       return;
     }
 
-    Serial.println(openRightValve((unsigned long)timeValue));
+    String result = openRightValve((unsigned long)timeValue);
+
+    Serial.println(result);
+    mqttClient.publish("mongo_garden/status/system", result);
+
     return;
   }
 
   if (topic == "mongo_garden/cmd/openLeftValve") {
     if (!isValidInteger(payload)) {
-      Serial.println("Tiempo invalido para openLeftValve");
+      mqttClient.publish(
+        "mongo_garden/status/system",
+        "ERROR: tiempo invalido para openLeftValve"
+      );
       return;
     }
 
     long timeValue = payload.toInt();
+
     if (timeValue <= 0) {
-      Serial.println("Tiempo invalido. Debe ser mayor que 0");
+      mqttClient.publish(
+        "mongo_garden/status/system",
+        "ERROR: tiempo debe ser mayor que 0"
+      );
       return;
     }
 
-    Serial.println(openLeftValve((unsigned long)timeValue));
+    String result = openLeftValve((unsigned long)timeValue);
+
+    Serial.println(result);
+    mqttClient.publish("mongo_garden/status/system", result);
+
     return;
   }
 
-  // -----------------------------------
-  // COMANDOS DE TIEMPO / RTC
-  // -----------------------------------
+  // ===================================
+  // COMANDOS DE LECTURA INDIVIDUAL
+  // ===================================
+
+  // Leer y publicar DHT interno
+  if (topic == "mongo_garden/cmd/read/dht/internal") {
+    publishDhtInternal();
+
+    mqttClient.publish(
+      "mongo_garden/status/system",
+      "READ_DHT_INTERNAL_COMPLETED"
+    );
+
+    return;
+  }
+
+  // Leer y publicar DHT externo
+  if (topic == "mongo_garden/cmd/read/dht/external") {
+    publishDhtExternal();
+
+    mqttClient.publish(
+      "mongo_garden/status/system",
+      "READ_DHT_EXTERNAL_COMPLETED"
+    );
+
+    return;
+  }
+
+  // Leer y publicar BMP180
+  if (topic == "mongo_garden/cmd/read/bmp") {
+    publishBmp();
+
+    mqttClient.publish(
+      "mongo_garden/status/system",
+      "READ_BMP_COMPLETED"
+    );
+
+    return;
+  }
+
+  // Leer y publicar TSL2561
+  if (topic == "mongo_garden/cmd/read/tsl") {
+    publishTsl();
+
+    mqttClient.publish(
+      "mongo_garden/status/system",
+      "READ_TSL_COMPLETED"
+    );
+
+    return;
+  }
+
+  // Leer y publicar todos los slots de suelo
+  if (topic == "mongo_garden/cmd/read/soil/all") {
+    mqttClient.publish(
+      "mongo_garden/status/system",
+      "READ_SOIL_ALL_STARTED"
+    );
+
+    // publishSoilAll() debe usar measureSoilSlot()
+    // para activar RELAYS, seleccionar canal y leer ambos lados.
+    publishSoilAll();
+
+    mqttClient.publish(
+      "mongo_garden/status/system",
+      "READ_SOIL_ALL_COMPLETED"
+    );
+
+    return;
+  }
+
+  // Leer un slot puntual de ambos lados
+  // Payload esperado: canal,slot
+  // Ejemplo: 5,5
+  if (topic == "mongo_garden/cmd/read/soil/slot") {
+    int commaPosition = payload.indexOf(',');
+
+    if (commaPosition == -1) {
+      mqttClient.publish(
+        "mongo_garden/status/system",
+        "ERROR: payload soil slot debe ser canal,slot"
+      );
+      return;
+    }
+
+    String channelText = payload.substring(0, commaPosition);
+    String slotText = payload.substring(commaPosition + 1);
+
+    channelText.trim();
+    slotText.trim();
+
+    if (!isValidInteger(channelText) ||
+        !isValidInteger(slotText)) {
+
+      mqttClient.publish(
+        "mongo_garden/status/system",
+        "ERROR: canal o slot no numerico"
+      );
+
+      return;
+    }
+
+    int channel = channelText.toInt();
+    int slot = slotText.toInt();
+
+    if (channel < 0 || channel > 15 ||
+        slot < 0 || slot > 15) {
+
+      mqttClient.publish(
+        "mongo_garden/status/system",
+        "ERROR: canal y slot deben estar entre 0 y 15"
+      );
+
+      return;
+    }
+
+    // Misma secuencia que funciona por Serial:
+    // activar relé maestro -> leer ambos lados -> apagar relé
+    digitalWrite(RELAYS, HIGH);
+    delay(500);
+
+    String result = getSoilHumidity(
+      SET_AND_READ,
+      BOTH_SIDES,
+      channel,
+      slot
+    );
+
+    delay(500);
+    digitalWrite(RELAYS, LOW);
+
+    Serial.println(result);
+
+    // Publicar resultado crudo de lectura puntual
+    mqttClient.publish(
+      "mongo_garden/telemetry/soil/onDemand",
+      result
+    );
+
+    // Publicar los valores por topic individual también
+    String topicRight =
+      "mongo_garden/telemetry/soil/rightside/" + String(slot);
+
+    String topicLeft =
+      "mongo_garden/telemetry/soil/leftside/" + String(slot);
+
+    mqttClient.publish(
+      topicRight,
+      String(humidityValuesRight[slot])
+    );
+
+    mqttClient.publish(
+      topicLeft,
+      String(humidityValuesLeft[slot])
+    );
+
+    mqttClient.publish(
+      "mongo_garden/status/system",
+      "READ_SOIL_SLOT_COMPLETED"
+    );
+
+    return;
+  }
+
+  // ===================================
+  // COMANDOS DE RTC
+  // ===================================
 
   if (topic == "mongo_garden/cmd/setTime") {
     String result = handleSetTimePayload(payload);
+
     Serial.println(result);
     mqttClient.publish("mongo_garden/status/rtc", result);
+
     return;
   }
 
   if (topic == "mongo_garden/cmd/syncRtc") {
-    // Usar la función que ya tienes
-    connectWiFi();  // asegurar WiFi
     String result = syncRtcWithInternet();
+
     Serial.println(result);
     mqttClient.publish("mongo_garden/status/rtc", result);
+
     return;
   }
 
-  // -----------------------------------
-  // COMANDO DE PARÁMETROS WIFI
-  // -----------------------------------
+  // ===================================
+  // COMANDOS WIFI
+  // ===================================
 
   if (topic == "mongo_garden/cmd/setWiFiParameters") {
     String result = handleSetWiFiPayload(payload);
+
     Serial.println(result);
+
+    // Se publica antes de perder la conexión MQTT
     mqttClient.publish("mongo_garden/status/wifi", result);
 
-    // Opcional: reconectar WiFi y MQTT con nuevas credenciales
-    wifiConectado = false;
-    connectWiFi();
-    mqttConectado = false;
-    connectMQTT();
+    // Si las credenciales son inválidas, connectWiFi()
+    // falla después de sus intentos limitados y el programa sigue vivo.
+    if (connectWiFi()) {
+      mqttConectado = false;
+      connectMQTT();
+    }
 
     return;
   }
 
-  // -----------------------------------
-  // COMANDO DE LECTURA DE SUELO
-  // -----------------------------------
+  // ===================================
+  // COMANDO readSoil ORIGINAL
+  // ===================================
+  // Payload:
+  // SET_AND_READ,BOTH_SIDES,5,5
 
   if (topic == "mongo_garden/cmd/readSoil") {
     String result = handleReadSoilPayload(payload);
+
     Serial.println(result);
-    mqttClient.publish("mongo_garden/telemetry/soil/onDemand", result);
+
+    mqttClient.publish(
+      "mongo_garden/telemetry/soil/onDemand",
+      result
+    );
+
     return;
   }
 
-  // -----------------------------------
+  // ===================================
   // COMANDO GENÉRICO DE SISTEMA
-  // -----------------------------------
+  // ===================================
 
   if (topic == "mongo_garden/cmd/system") {
-    // Aquí puedes implementar comandos tipo "REBOOT", "PING", etc.
-    // Por ahora solo lo echo al serial y status
-    Serial.print("Comando de sistema: ");
-    Serial.println(payload);
-    mqttClient.publish("mongo_garden/status/system", "SYSTEM_CMD:" + payload);
+    String result = "SYSTEM_CMD:" + payload;
+
+    Serial.println(result);
+    mqttClient.publish("mongo_garden/status/system", result);
+
     return;
   }
 
-  // Si llega algo a un topic que no manejamos explícitamente
-  Serial.println("MQTT comando no reconocido en este topic");
+  // ===================================
+  // TOPIC DESCONOCIDO
+  // ===================================
+
+  Serial.println("MQTT comando no reconocido");
+
+  mqttClient.publish(
+    "mongo_garden/status/system",
+    "ERROR: MQTT_TOPIC_NOT_RECOGNIZED"
+  );
 }
 
 bool handleSetTimeCommand(String input)
@@ -1060,12 +1269,12 @@ bool connectWiFi()
 
 void connectMQTT()
 {
-  // Si ya estamos conectados y el cliente sigue vivo, no hacer nada
+  // Si MQTT ya está conectado, no hacer nada
   if (mqttConectado && mqttClient.connected()) {
     return;
   }
 
-  // Si no hay WiFi, no intentes conectar MQTT aquí
+  // No intentar MQTT si WiFi no está disponible
   if (!wifiConectado || WiFi.status() != WL_CONNECTED) {
     Serial.println("No se puede conectar a MQTT: WiFi no disponible");
     mqttConectado = false;
@@ -1077,21 +1286,28 @@ void connectMQTT()
   Serial.print(":");
   Serial.println(MQTT_PORT);
 
+  // Configurar cliente y callback
   mqttClient.begin(MQTT_HOST, MQTT_PORT, net);
   mqttClient.onMessage(mqttMessageReceived);
 
-  int retryCount  = 0;
   const int maxRetries = 5;
+  int retryCount = 0;
 
-  while (!mqttClient.connect("mongo_garden_mkr1000", MQTT_USERNAME, MQTT_PASSWORD) &&
-         retryCount < maxRetries) {
+  while (!mqttClient.connect(
+      "mongo_garden_mkr1000",
+      MQTT_USERNAME,
+      MQTT_PASSWORD
+    ) && retryCount < maxRetries) {
+
     Serial.print("Intento MQTT ");
     Serial.print(retryCount + 1);
     Serial.println(" fallido. Reintentando en 2 segundos...");
+
     retryCount++;
     delay(2000);
   }
 
+  // Salir si no logró conectar
   if (!mqttClient.connected()) {
     Serial.println("No se pudo conectar al broker MQTT");
     mqttConectado = false;
@@ -1100,16 +1316,49 @@ void connectMQTT()
 
   Serial.println("MQTT conectado");
 
+  // -----------------------------------
+  // COMANDOS DE VÁLVULAS
+  // -----------------------------------
   mqttClient.subscribe("mongo_garden/cmd/openRightValve");
   mqttClient.subscribe("mongo_garden/cmd/openLeftValve");
-  mqttClient.subscribe("mongo_garden/cmd/syncRtc");
+
+  // -----------------------------------
+  // COMANDOS DE RTC Y WIFI
+  // -----------------------------------
   mqttClient.subscribe("mongo_garden/cmd/setTime");
+  mqttClient.subscribe("mongo_garden/cmd/syncRtc");
   mqttClient.subscribe("mongo_garden/cmd/setWiFiParameters");
+
+  // -----------------------------------
+  // COMANDOS DE SUELO YA EXISTENTES
+  // -----------------------------------
   mqttClient.subscribe("mongo_garden/cmd/readSoil");
+
+  // -----------------------------------
+  // NUEVOS COMANDOS DE LECTURA INDIVIDUAL
+  // -----------------------------------
+  mqttClient.subscribe("mongo_garden/cmd/read/dht/internal");
+  mqttClient.subscribe("mongo_garden/cmd/read/dht/external");
+  mqttClient.subscribe("mongo_garden/cmd/read/bmp");
+  mqttClient.subscribe("mongo_garden/cmd/read/tsl");
+
+  // Publica los 16 slots de ambos lados
+  mqttClient.subscribe("mongo_garden/cmd/read/soil/all");
+
+  // Payload esperado: canal,slot
+  // Ejemplo: 5,5
+  mqttClient.subscribe("mongo_garden/cmd/read/soil/slot");
+
+  // Comandos genéricos del sistema
   mqttClient.subscribe("mongo_garden/cmd/system");
 
   mqttConectado = true;
-  mqttClient.publish("mongo_garden/status/system", "MQTT_CONNECTED");
+
+  // Avisar al dashboard que el MKR1000 está conectado
+  mqttClient.publish(
+    "mongo_garden/status/system",
+    "MQTT_CONNECTED"
+  );
 }
 
 String setWiFiParameters(String newSsid, String newPass)
