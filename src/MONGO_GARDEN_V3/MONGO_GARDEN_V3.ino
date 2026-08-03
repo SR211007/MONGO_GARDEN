@@ -153,7 +153,7 @@ void setup()
   if (!(SD.begin(CS_PIN))) {Serial.println("Error inicializando modulo SD");} else { Serial.println("Modulo SD inicializado");}
   demoMode = digitalRead(DEMOPIN);
   if (demoMode == 1) {Serial.println("DEMO MODE ACTIVE");}
-  Serial.println("Version - 202608010241");
+  Serial.println("Version - 2026-08-02-23-38");
   Serial.println("------FIN INICIO------");
   digitalWrite(RELAYS, LOW);
   digitalWrite(RELAYR, LOW);
@@ -320,7 +320,7 @@ void mqttMessageReceived(String &topic, String &payload)
     if (!isValidInteger(payload)) {
       mqttClient.publish(
         "mongo_garden/status/system",
-        "ERROR: tiempo invalido para openRightValve"
+        "ERROR: tiempo invalido para openRightValve| " + String(getTime())
       );
       return;
     }
@@ -330,7 +330,7 @@ void mqttMessageReceived(String &topic, String &payload)
     if (timeValue <= 0) {
       mqttClient.publish(
         "mongo_garden/status/system",
-        "ERROR: tiempo debe ser mayor que 0"
+        "ERROR: tiempo debe ser mayor que 0| " + String(getTime())
       );
       return;
     }
@@ -338,7 +338,7 @@ void mqttMessageReceived(String &topic, String &payload)
     String result = openRightValve((unsigned long)timeValue);
 
     Serial.println(result);
-    mqttClient.publish("mongo_garden/status/system", result);
+    mqttClient.publish("mongo_garden/status/system", result + " | " + String(getTime()));
 
     return;
   }
@@ -347,7 +347,7 @@ void mqttMessageReceived(String &topic, String &payload)
     if (!isValidInteger(payload)) {
       mqttClient.publish(
         "mongo_garden/status/system",
-        "ERROR: tiempo invalido para openLeftValve"
+        "ERROR: tiempo invalido para openLeftValve| " + String(getTime())
       );
       return;
     }
@@ -357,7 +357,7 @@ void mqttMessageReceived(String &topic, String &payload)
     if (timeValue <= 0) {
       mqttClient.publish(
         "mongo_garden/status/system",
-        "ERROR: tiempo debe ser mayor que 0"
+        "ERROR: tiempo debe ser mayor que 0| " + String(getTime())
       );
       return;
     }
@@ -365,7 +365,7 @@ void mqttMessageReceived(String &topic, String &payload)
     String result = openLeftValve((unsigned long)timeValue);
 
     Serial.println(result);
-    mqttClient.publish("mongo_garden/status/system", result);
+    mqttClient.publish("mongo_garden/status/system", result + " | " + String(getTime()));
 
     return;
   }
@@ -380,7 +380,7 @@ void mqttMessageReceived(String &topic, String &payload)
 
     mqttClient.publish(
       "mongo_garden/status/system",
-      "READ_DHT_INTERNAL_COMPLETED"
+      "READ_DHT_INTERNAL_COMPLETED| " + String(getTime())
     );
 
     return;
@@ -392,7 +392,7 @@ void mqttMessageReceived(String &topic, String &payload)
 
     mqttClient.publish(
       "mongo_garden/status/system",
-      "READ_DHT_EXTERNAL_COMPLETED"
+      "READ_DHT_EXTERNAL_COMPLETED| " + String(getTime())
     );
 
     return;
@@ -404,7 +404,7 @@ void mqttMessageReceived(String &topic, String &payload)
 
     mqttClient.publish(
       "mongo_garden/status/system",
-      "READ_BMP_COMPLETED"
+      "READ_BMP_COMPLETED| " + String(getTime())
     );
 
     return;
@@ -416,7 +416,7 @@ void mqttMessageReceived(String &topic, String &payload)
 
     mqttClient.publish(
       "mongo_garden/status/system",
-      "READ_TSL_COMPLETED"
+      "READ_TSL_COMPLETED| " + String(getTime())
     );
 
     return;
@@ -426,7 +426,7 @@ void mqttMessageReceived(String &topic, String &payload)
   if (topic == "mongo_garden/cmd/read/soil/all") {
     mqttClient.publish(
       "mongo_garden/status/system",
-      "READ_SOIL_ALL_STARTED"
+      "READ_SOIL_ALL_STARTED| " + String(getTime())
     );
 
     // publishSoilAll() debe usar measureSoilSlot()
@@ -435,7 +435,7 @@ void mqttMessageReceived(String &topic, String &payload)
 
     mqttClient.publish(
       "mongo_garden/status/system",
-      "READ_SOIL_ALL_COMPLETED"
+      "READ_SOIL_ALL_COMPLETED " + String(getTime())
     );
 
     return;
@@ -450,7 +450,7 @@ void mqttMessageReceived(String &topic, String &payload)
     if (commaPosition == -1) {
       mqttClient.publish(
         "mongo_garden/status/system",
-        "ERROR: payload soil slot debe ser canal,slot"
+        "ERROR: payload soil slot debe ser canal,slot| " + String(getTime())
       );
       return;
     }
@@ -466,7 +466,7 @@ void mqttMessageReceived(String &topic, String &payload)
 
       mqttClient.publish(
         "mongo_garden/status/system",
-        "ERROR: canal o slot no numerico"
+        "ERROR: canal o slot no numerico| " + String(getTime())
       );
 
       return;
@@ -480,7 +480,7 @@ void mqttMessageReceived(String &topic, String &payload)
 
       mqttClient.publish(
         "mongo_garden/status/system",
-        "ERROR: canal y slot deben estar entre 0 y 15"
+        "ERROR: canal y slot deben estar entre 0 y 15| " + String(getTime())
       );
 
       return;
@@ -528,7 +528,7 @@ void mqttMessageReceived(String &topic, String &payload)
 
     mqttClient.publish(
       "mongo_garden/status/system",
-      "READ_SOIL_SLOT_COMPLETED"
+      "READ_SOIL_SLOT_COMPLETED| " + String(getTime())
     );
 
     return;
@@ -605,7 +605,7 @@ void mqttMessageReceived(String &topic, String &payload)
     String result = "SYSTEM_CMD:" + payload;
 
     Serial.println(result);
-    mqttClient.publish("mongo_garden/status/system", result);
+    mqttClient.publish("mongo_garden/status/system", result + " | " + String(getTime()));
 
     return;
   }
@@ -618,7 +618,7 @@ void mqttMessageReceived(String &topic, String &payload)
 
   mqttClient.publish(
     "mongo_garden/status/system",
-    "ERROR: MQTT_TOPIC_NOT_RECOGNIZED"
+    "ERROR: MQTT_TOPIC_NOT_RECOGNIZED| " + String(getTime())
   );
 }
 
@@ -1355,10 +1355,24 @@ void connectMQTT()
   mqttConectado = true;
 
   // Avisar al dashboard que el MKR1000 está conectado
-  mqttClient.publish(
-    "mongo_garden/status/system",
-    "MQTT_CONNECTED"
-  );
+
+    // Tiempo relativo (backup)
+  unsigned long nowMillis = millis();
+
+  // Tiempo absoluto del RTC (si está disponible)
+  long nowRtcSeconds = getRtcSeconds();
+  bool rtcOk = (nowRtcSeconds >= 0);
+
+  // Publicar qué fuente de tiempo estamos usando
+  if (rtcOk) {
+    publishTimeSource("RTC");
+  } else {
+    publishTimeSource("MILLIS");
+  }
+
+
+  String Hora = getTime();
+  mqttClient.publish("mongo_garden/status/system", "MQTT_CONNECTED " + Hora);
 }
 
 String setWiFiParameters(String newSsid, String newPass)
@@ -1503,6 +1517,7 @@ void publishDhtInternal()
 
   if (isnan(h) || isnan(t) || isnan(f)) {
     Serial.println("Error leyendo DHT interno");
+    mqttClient.publish("mongo_garden/telemetry/dht/internal", "Error leyendo DHT interno");
     return;
   }
 
@@ -1524,6 +1539,7 @@ void publishDhtExternal()
 
   if (isnan(h) || isnan(t) || isnan(f)) {
     Serial.println("Error leyendo DHT externo");
+    mqttClient.publish("mongo_garden/telemetry/dht/external", "Error en DHT externo");
     return;
   }
 
@@ -1541,7 +1557,8 @@ void publishBmp()
 {
   // Si por alguna razón no está inicializado, no hacemos nada
   if (BMP_ONLINE == false) {
-    Serial.println("BMP180 no inicializado, no se publica");
+    Serial.println("BMP180 no inicializado");
+    mqttClient.publish("mongo_garden/telemetry/bmp", "Error en bmp");
     return;
   }
 
@@ -1564,6 +1581,8 @@ void publishTsl()
   if (TSL_ONLINE == false)
     {
       Serial.println("TSL2561 no inicializado");
+      mqttClient.publish("mongo_garden/telemetry/tsl", "Error en TSL");
+      return;
     }
   
   String Nota = "";
@@ -1585,9 +1604,9 @@ void publishTsl()
 void publishTimeSource(const String &source)
 {
   // Solo publicar si cambió
-  if (source == currentTimeSource) {
-    return;
-  }
+ // if (source == currentTimeSource) {
+ //   return;
+ // }
 
   currentTimeSource = source;
 
