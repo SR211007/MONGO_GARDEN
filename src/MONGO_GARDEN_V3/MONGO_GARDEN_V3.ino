@@ -10,6 +10,7 @@
   #include <SPI.h>
   #include <WiFi101.h>
   #include <MQTT.h>
+  #include <ArduinoJson.h>
   #define USE_WIFI101_PRO           true
   #include <Adafruit_BMP085.h>
   #include <WebSocketsServer_Generic.h>
@@ -54,33 +55,23 @@
   WebSocketsServer webSocket = WebSocketsServer(81); // Servidor WebSocket (Puerto 81)
 
   MQTTClient mqttClient(256);
-    const char* MQTT_HOST     = "157.137.230.39";
-    const int   MQTT_PORT     = 1883;
-    const char* MQTT_USERNAME = "mkr1000-Main";
-    const char* MQTT_PASSWORD = "BDAFE5BE";
+    char MQTT_HOST[48] = "157.137.230.39";
+    char MQTT_USERNAME[48] = "mkr1000-Main";
+    char MQTT_PASSWORD[65] = "BDAFE5BE";
+    int  MQTT_PORT = 1883;
 
     bool mqttConectado = false;
     
-    unsigned long lastDhtPublishMillis  = 0;
-    unsigned long lastBmpPublishMillis  = 0;
-    unsigned long lastTslPublishMillis  = 0;
-    unsigned long lastSoilPublishMillis = 0;
-
-    const unsigned long DHT_INTERVAL_MS  = 60UL * 1000UL;  // 30 s
-    const unsigned long BMP_INTERVAL_MS  = 1800UL * 1000UL;  // 60 s
-    const unsigned long TSL_INTERVAL_MS  = 1800UL * 1000UL;  // 60 s
-    const unsigned long SOIL_INTERVAL_MS = 3600UL * 1000UL;  // 60 s;
-
     // Usaremos segundos del RTC como "tiempo base" cuando sea posible
     long lastDhtPublishRtcSeconds  = -1;
     long lastBmpPublishRtcSeconds  = -1;
     long lastTslPublishRtcSeconds  = -1;
     long lastSoilPublishRtcSeconds = -1;
 
-    const long DHT_INTERVAL_SEC  = 60;
-    const long BMP_INTERVAL_SEC  = 1800;
-    const long TSL_INTERVAL_SEC  = 1800;
-    const long SOIL_INTERVAL_SEC = 3600;
+    long DHT_INTERVAL_SEC  = 60;
+    long BMP_INTERVAL_SEC  = 1800;
+    long TSL_INTERVAL_SEC  = 1800;
+    long SOIL_INTERVAL_SEC = 3600;
     String currentTimeSource = "";      // "RTC" o "MILLIS"
 
   Adafruit_TSL2561_Unified tsl = Adafruit_TSL2561_Unified(TSL2561_ADDR_FLOAT, 12345);
@@ -100,15 +91,52 @@
   String hostName = "www.google.com";
   bool wifiConectado = false;
   bool serverRunning = false;
-  char ssid[32] = "SANTIAGO";        // your network SSID (name)
-  char pass[64] = "43102996";    // your network password (use for WPA, or use as key for WEP)
-  /*
-  char ssid[32] = "Semillero ASI";        // your network SSID (name)
-  char pass[64] = "semilleroasik601";   
-  */
   char ap_ssid[] = "MONGO_GARDEN";
   char ap_pass[] = "mongo_pwr";
   
+// ============================================================
+// CONFIGURACIÓN PERSISTENTE: SD / WiFi / MQTT / TELEMETRÍA
+// ============================================================
+
+  bool sdOnline = false;
+
+  const char* STARTUP_DIR       = "/startup";
+  const char* DATA_DIR          = "/data";
+  const char* STARTUP_JSON_PATH = "/startup/startUpVars.json";
+  const char* SENSOR_CSV_PATH   = "/data/sensor_log.csv";
+
+  // Tres redes WiFi: se probarán en este orden.
+  const uint8_t WIFI_NETWORK_COUNT = 3;
+
+  char wifiSsids[WIFI_NETWORK_COUNT][33] = {
+    "Semillero ASI",
+    "A15 de SANTIAGO",
+    "WIFI-ITM"
+  };
+
+  char wifiPasswords[WIFI_NETWORK_COUNT][65] = {
+    "semilleroasik601",
+    "1036451694",
+    ""
+  };
+
+  // Frecuencias editables desde startUpVars.json.
+  unsigned long DHT_INTERVAL_MS  = 60UL * 1000UL;
+  unsigned long BMP_INTERVAL_MS  = 1800UL * 1000UL;
+  unsigned long TSL_INTERVAL_MS  = 1800UL * 1000UL;
+  unsigned long SOIL_INTERVAL_MS = 3600UL * 1000UL;
+
+  // Cada cuánto se guarda una fila completa en CSV cuando MQTT está caído.
+  // Por defecto queda cada hora, igual al intervalo de suelo.
+  unsigned long OFFLINE_SNAPSHOT_INTERVAL_MS = 3600UL * 1000UL;
+
+
+  unsigned long lastOfflineSnapshotMillis = 0;
+  unsigned long lastWiFiRetryMillis = 0;
+
+  const unsigned long WIFI_RETRY_INTERVAL_MS = 60000UL; // Reintenta conexión cada 60 s
+
+
 
   int demoMode;
 //end
@@ -150,18 +178,18 @@ void setup()
   Serial.println("Modulo de reloj inicializado - NC");
   if (!bmp.begin()) {Serial.println("Error inicializando BMP180"); BMP_ONLINE = false;} else {Serial.println("BMP180 inicializado"); BMP_ONLINE = true;}
   if (!tsl.begin()) {Serial.println("Error inicializando TSL2561"); TSL_ONLINE = false;} else {Serial.println("TSL2561 inicializado"); tsl.setGain(TSL2561_GAIN_1X); tsl.setIntegrationTime(TSL2561_INTEGRATIONTIME_13MS); TSL_ONLINE = true;}
-  if (!(SD.begin(CS_PIN))) {Serial.println("Error inicializando modulo SD");} else { Serial.println("Modulo SD inicializado");}
+  if (!initStorageAndConfiguration()) {
+  Serial.println("ADVERTENCIA: SD o configuracion no disponible");}
   demoMode = digitalRead(DEMOPIN);
   if (demoMode == 1) {Serial.println("DEMO MODE ACTIVE");}
-  Serial.println("Version - 2026-08-02-23-38");
+  Serial.println("Version - 2026-08-04-12-35");
   Serial.println("------FIN INICIO------");
   digitalWrite(RELAYS, LOW);
   digitalWrite(RELAYR, LOW);
   digitalWrite(RELAYL, LOW);
 
   if (!connectWiFi()) {
-    Serial.println("Advertencia: WiFi no disponible. Algunas funciones no funcionarán.");
-  }
+  Serial.println("Advertencia: WiFi no disponible. Se activara respaldo CSV.");}
 
   connectMQTT();
 
@@ -169,18 +197,49 @@ void setup()
 
 void loop()
 {
-  // Si tienes MQTT y ya hay WiFi:
-  if (wifiConectado && WiFi.status() == WL_CONNECTED) {
+  // Reintento de WiFi cada 60 segundos si se perdió la conexión.
+  if (WiFi.status() != WL_CONNECTED) {
+    wifiConectado = false;
+
+    if (millis() - lastWiFiRetryMillis >= WIFI_RETRY_INTERVAL_MS) {
+      lastWiFiRetryMillis = millis();
+      connectWiFi();
+    }
+  } else {
+    wifiConectado = true;
+  }
+
+  // MQTT solo se gestiona si WiFi está disponible.
+  if (wifiConectado) {
     if (!mqttClient.connected()) {
       mqttConectado = false;
       connectMQTT();
     }
 
-    mqttClient.loop();
-    handleTelemetryLoop();
+    if (mqttClient.connected()) {
+      mqttConectado = true;
+      mqttClient.loop();
+    }
   }
 
-  // Siempre escuchas Serial para comandos, aunque no haya WiFi
+  // Conserva tu comportamiento: telemetría normal solo cuando demoMode es 1.
+  demoMode = digitalRead(DEMOPIN);
+
+  if (demoMode == 1) {
+    bool mqttAvailable =
+      wifiConectado &&
+      mqttConectado &&
+      WiFi.status() == WL_CONNECTED &&
+      mqttClient.connected();
+
+    if (mqttAvailable) {
+      handleTelemetryLoop();
+    } else {
+      handleOfflineLogging();
+    }
+  }
+
+  // Los comandos Serial siguen funcionando incluso sin red.
   serialRead();
 }
 
@@ -207,7 +266,7 @@ void serialRead()
     Serial.println("  GET_EXTERNAL_DHT");
     Serial.println("  GET_TSL_DATA");
     Serial.println("  SET_TIME,2026,07,26,21,45,00");
-    Serial.println("  SET_WiFi_PARAMETERS_\"SSID\"_\"PASSWORD\"");
+    Serial.println("  SET_WIFI,1,\"SSID\",\"PASSWORD\"");
     Serial.println("  OPEN_RIGHT_VALVE,2000");
     Serial.println("  OPEN_LEFT_VALVE,2000");
     Serial.println("  SET_AND_READ, BOTH_SIDES, 5, 5");
@@ -217,15 +276,15 @@ void serialRead()
 void handleTelemetryLoop()
 {
   demoMode = digitalRead(DEMOPIN);
-  if (demoMode == 0) {return;}
-  // Tiempo relativo (backup)
+  if (demoMode == 0) {
+    return;
+  }
+
   unsigned long nowMillis = millis();
 
-  // Tiempo absoluto del RTC (si está disponible)
   long nowRtcSeconds = getRtcSeconds();
   bool rtcOk = (nowRtcSeconds >= 0);
 
-  // Publicar qué fuente de tiempo estamos usando
   if (rtcOk) {
     publishTimeSource("RTC");
   } else {
@@ -244,7 +303,10 @@ void handleTelemetryLoop()
       lastDhtPublishRtcSeconds = nowRtcSeconds;
     }
   } else {
-    if ((nowMillis - lastDhtPublishMillis) >= DHT_INTERVAL_MS) {
+    static unsigned long lastDhtPublishMillis = 0;
+    if (lastDhtPublishMillis == 0 ||
+        (nowMillis - lastDhtPublishMillis) >= DHT_INTERVAL_MS) {
+
       publishDhtInternal();
       publishDhtExternal();
       lastDhtPublishMillis = nowMillis;
@@ -262,7 +324,10 @@ void handleTelemetryLoop()
       lastBmpPublishRtcSeconds = nowRtcSeconds;
     }
   } else {
-    if ((nowMillis - lastBmpPublishMillis) >= BMP_INTERVAL_MS) {
+    static unsigned long lastBmpPublishMillis = 0;
+    if (lastBmpPublishMillis == 0 ||
+        (nowMillis - lastBmpPublishMillis) >= BMP_INTERVAL_MS) {
+
       publishBmp();
       lastBmpPublishMillis = nowMillis;
     }
@@ -279,7 +344,10 @@ void handleTelemetryLoop()
       lastTslPublishRtcSeconds = nowRtcSeconds;
     }
   } else {
-    if ((nowMillis - lastTslPublishMillis) >= TSL_INTERVAL_MS) {
+    static unsigned long lastTslPublishMillis = 0;
+    if (lastTslPublishMillis == 0 ||
+        (nowMillis - lastTslPublishMillis) >= TSL_INTERVAL_MS) {
+
       publishTsl();
       lastTslPublishMillis = nowMillis;
     }
@@ -296,7 +364,10 @@ void handleTelemetryLoop()
       lastSoilPublishRtcSeconds = nowRtcSeconds;
     }
   } else {
-    if ((nowMillis - lastSoilPublishMillis) >= SOIL_INTERVAL_MS) {
+    static unsigned long lastSoilPublishMillis = 0;
+    if (lastSoilPublishMillis == 0 ||
+        (nowMillis - lastSoilPublishMillis) >= SOIL_INTERVAL_MS) {
+
       publishSoilAll();
       lastSoilPublishMillis = nowMillis;
     }
@@ -565,13 +636,18 @@ void mqttMessageReceived(String &topic, String &payload)
 
     Serial.println(result);
 
-    // Se publica antes de perder la conexión MQTT
-    mqttClient.publish("mongo_garden/status/wifi", result);
+    // Se envía antes de desconectar MQTT.
+    mqttClient.publish(
+      "mongo_garden/status/wifi",
+      result + " | reiniciando conexion WiFi"
+    );
 
-    // Si las credenciales son inválidas, connectWiFi()
-    // falla después de sus intentos limitados y el programa sigue vivo.
+    // Se fuerza un nuevo ciclo de conexión.
+    WiFi.disconnect();
+    wifiConectado = false;
+    mqttConectado = false;
+
     if (connectWiFi()) {
-      mqttConectado = false;
       connectMQTT();
     }
 
@@ -925,81 +1001,120 @@ bool isValidInteger(String text)
 
 bool handleWiFiCommand(String input)
 {
-    const String prefix = "SET_WiFi_PARAMETERS_";
+  const String prefix = "SET_WIFI,";
 
-    // Si no empieza por el prefijo, no es este comando
-    if (!input.startsWith(prefix)) {
-      return false;
-    }
+  if (!input.startsWith(prefix)) {
+    return false;
+  }
 
-    // Buscar la primera comilla del SSID (después del prefijo)
-    int firstQuote = input.indexOf('"', prefix.length());
-    if (firstQuote == -1) {
-      Serial.println("Formato invalido. Falta la primera comilla del SSID");
-      return true;
-    }
+  // Formato:
+  // SET_WIFI,1,"SSID","PASSWORD"
 
-    // Buscar la segunda comilla del SSID
-    int secondQuote = input.indexOf('"', firstQuote + 1);
-    if (secondQuote == -1) {
-      Serial.println("Formato invalido. Falta la segunda comilla del SSID");
-      return true;
-    }
+  int firstComma = input.indexOf(',');
+  int secondComma = input.indexOf(',', firstComma + 1);
 
-    // Buscar la primera comilla del password (debe aparecer después de secondQuote)
-    int thirdQuote = input.indexOf('"', secondQuote + 1);
-    if (thirdQuote == -1) {
-      Serial.println("Formato invalido. Falta la primera comilla del password");
-      return true;
-    }
-
-    // Buscar la segunda comilla del password
-    int fourthQuote = input.indexOf('"', thirdQuote + 1);
-    if (fourthQuote == -1) {
-      Serial.println("Formato invalido. Falta la segunda comilla del password");
-      return true;
-    }
-
-    // Validar que no haya texto extra después del último argumento
-    String extraText = input.substring(fourthQuote + 1);
-    extraText.trim();
-    if (extraText.length() > 0) {
-      Serial.println("Formato invalido. Hay caracteres extra al final");
-      return true;
-    }
-
-    // Extraer SSID y password entre comillas
-    String newSsid = input.substring(firstQuote + 1, secondQuote);
-    String newPass = input.substring(thirdQuote + 1, fourthQuote);
-
-    // Actualizar parámetros WiFi (setWiFiParameters hace la validación de longitudes)
-    String result = setWiFiParameters(newSsid, newPass);
-    Serial.println(result);
-
-    // Intentar conexión con las nuevas credenciales, pero UNA VEZ
-    if (!connectWiFi()) {
-      Serial.println("WiFi sigue sin conectar con las nuevas credenciales");
-    } else {
-      Serial.println("WiFi conectado con nuevas credenciales");
-    }
-
+  if (firstComma == -1 || secondComma == -1) {
+    Serial.println("Formato invalido. Usa: SET_WIFI,1,\"SSID\",\"PASSWORD\"");
     return true;
+  }
+
+  String networkIndexText = input.substring(firstComma + 1, secondComma);
+  networkIndexText.trim();
+
+  if (!isValidInteger(networkIndexText)) {
+    Serial.println("Indice de red invalido. Usa 1, 2 o 3");
+    return true;
+  }
+
+  int networkIndex = networkIndexText.toInt();
+
+  if (networkIndex < 1 || networkIndex > WIFI_NETWORK_COUNT) {
+    Serial.println("Indice de red invalido. Usa 1, 2 o 3");
+    return true;
+  }
+
+  int firstQuote = input.indexOf('"', secondComma + 1);
+  int secondQuote = input.indexOf('"', firstQuote + 1);
+  int thirdQuote = input.indexOf('"', secondQuote + 1);
+  int fourthQuote = input.indexOf('"', thirdQuote + 1);
+
+  if (firstQuote == -1 ||
+      secondQuote == -1 ||
+      thirdQuote == -1 ||
+      fourthQuote == -1) {
+
+    Serial.println("Formato invalido. Usa: SET_WIFI,1,\"SSID\",\"PASSWORD\"");
+    return true;
+  }
+
+  String extraText = input.substring(fourthQuote + 1);
+  extraText.trim();
+
+  if (extraText.length() > 0) {
+    Serial.println("Formato invalido. Hay caracteres extra al final");
+    return true;
+  }
+
+  String newSsid = input.substring(firstQuote + 1, secondQuote);
+  String newPassword = input.substring(thirdQuote + 1, fourthQuote);
+
+  String result = setWiFiParameters(
+    (uint8_t)networkIndex,
+    newSsid,
+    newPassword
+  );
+
+  Serial.println(result);
+
+  // Desconecta la conexión anterior y fuerza que se prueben las tres redes.
+  WiFi.disconnect();
+  wifiConectado = false;
+  mqttConectado = false;
+
+  if (connectWiFi()) {
+    connectMQTT();
+  } else {
+    Serial.println("No se pudo conectar a ninguna red configurada");
+  }
+
+  return true;
 }
 
 String handleSetWiFiPayload(String payload)
 {
-  int sep = payload.indexOf(';');
-  if (sep == -1) {
-    return "Formato invalido. Usa: SSID;PASSWORD";
+  // Formato MQTT:
+  // 1;SSID;PASSWORD
+
+  int firstSeparator = payload.indexOf(';');
+  int secondSeparator = payload.indexOf(';', firstSeparator + 1);
+
+  if (firstSeparator == -1 || secondSeparator == -1) {
+    return "ERROR: formato invalido. Usa: indice;SSID;PASSWORD";
   }
 
-  String newSsid = payload.substring(0, sep);
-  String newPass = payload.substring(sep + 1);
+  String networkIndexText = payload.substring(0, firstSeparator);
+  String newSsid = payload.substring(firstSeparator + 1, secondSeparator);
+  String newPassword = payload.substring(secondSeparator + 1);
 
+  networkIndexText.trim();
   newSsid.trim();
-  newPass.trim();
+  newPassword.trim();
 
-  return setWiFiParameters(newSsid, newPass);
+  if (!isValidInteger(networkIndexText)) {
+    return "ERROR: indice de red invalido. Usa 1, 2 o 3";
+  }
+
+  int networkIndex = networkIndexText.toInt();
+
+  if (networkIndex < 1 || networkIndex > WIFI_NETWORK_COUNT) {
+    return "ERROR: indice de red invalido. Usa 1, 2 o 3";
+  }
+
+  return setWiFiParameters(
+    (uint8_t)networkIndex,
+    newSsid,
+    newPassword
+  );
 }
 
 bool handleValveCommand(String input)
@@ -1224,57 +1339,77 @@ String syncRtcWithInternet()
 
 bool connectWiFi()
 {
-  // Si ya está conectado, no hacer nada
   if (WiFi.status() == WL_CONNECTED) {
     wifiConectado = true;
     return true;
   }
 
-  Serial.print("Conectando a WiFi");
+  const uint8_t maxRetriesPerNetwork = 3;
+  const unsigned long connectionTimeoutMs = 8000UL;
+  const unsigned long retryDelayMs = 2500UL;
 
-  const int maxRetries   = 5;
-  const int retryDelayMs = 3000;
-  int retryCount         = 0;
+  wifiConectado = false;
 
-  while (retryCount < maxRetries) {
-    WiFi.begin(ssid, pass);
-
-    unsigned long startAttempt = millis();
-    while (millis() - startAttempt < 5000) {
-      if (WiFi.status() == WL_CONNECTED) {
-        Serial.println();
-        Serial.println("WiFi conectado");
-        Serial.print("IP: ");
-        Serial.println(WiFi.localIP());
-
-        wifiConectado = true;
-        return true;
-      }
-      delay(100);
+  for (uint8_t networkIndex = 0; networkIndex < WIFI_NETWORK_COUNT; networkIndex++) {
+    // No intenta una red no configurada.
+    if (strlen(wifiSsids[networkIndex]) == 0) {
+      continue;
     }
 
-    Serial.print(".");
-    retryCount++;
-    delay(retryDelayMs);
+    Serial.print("Probando red WiFi ");
+    Serial.print(networkIndex + 1);
+    Serial.print(": ");
+    Serial.println(wifiSsids[networkIndex]);
+
+    for (uint8_t attempt = 0; attempt < maxRetriesPerNetwork; attempt++) {
+      Serial.print("Intento ");
+      Serial.print(attempt + 1);
+      Serial.print("/");
+      Serial.println(maxRetriesPerNetwork);
+
+      WiFi.begin(wifiSsids[networkIndex], wifiPasswords[networkIndex]);
+
+      unsigned long startedAt = millis();
+
+      while (millis() - startedAt < connectionTimeoutMs) {
+        if (WiFi.status() == WL_CONNECTED) {
+          wifiConectado = true;
+
+          Serial.println("WiFi conectado");
+          Serial.print("Red activa: ");
+          Serial.println(wifiSsids[networkIndex]);
+          Serial.print("IP: ");
+          Serial.println(WiFi.localIP());
+
+          return true;
+        }
+
+        delay(100);
+      }
+
+      Serial.println("Intento fallido");
+      delay(retryDelayMs);
+    }
+
+    Serial.print("No fue posible conectar a: ");
+    Serial.println(wifiSsids[networkIndex]);
   }
 
-  Serial.println();
-  Serial.println("No se pudo conectar a la red WiFi.");
+  wifiConectado = false;
+
+  Serial.println("ERROR: ninguna red WiFi conocida esta disponible");
   Serial.print("Estado WiFi: ");
   Serial.println(WiFi.status());
 
-  wifiConectado = false;
   return false;
 }
 
 void connectMQTT()
 {
-  // Si MQTT ya está conectado, no hacer nada
   if (mqttConectado && mqttClient.connected()) {
     return;
   }
 
-  // No intentar MQTT si WiFi no está disponible
   if (!wifiConectado || WiFi.status() != WL_CONNECTED) {
     Serial.println("No se puede conectar a MQTT: WiFi no disponible");
     mqttConectado = false;
@@ -1286,7 +1421,6 @@ void connectMQTT()
   Serial.print(":");
   Serial.println(MQTT_PORT);
 
-  // Configurar cliente y callback
   mqttClient.begin(MQTT_HOST, MQTT_PORT, net);
   mqttClient.onMessage(mqttMessageReceived);
 
@@ -1294,10 +1428,10 @@ void connectMQTT()
   int retryCount = 0;
 
   while (!mqttClient.connect(
-      "mongo_garden_mkr1000",
-      MQTT_USERNAME,
-      MQTT_PASSWORD
-    ) && retryCount < maxRetries) {
+           "mongo_garden_mkr1000",
+           MQTT_USERNAME,
+           MQTT_PASSWORD
+         ) && retryCount < maxRetries) {
 
     Serial.print("Intento MQTT ");
     Serial.print(retryCount + 1);
@@ -1307,7 +1441,6 @@ void connectMQTT()
     delay(2000);
   }
 
-  // Salir si no logró conectar
   if (!mqttClient.connected()) {
     Serial.println("No se pudo conectar al broker MQTT");
     mqttConectado = false;
@@ -1316,88 +1449,73 @@ void connectMQTT()
 
   Serial.println("MQTT conectado");
 
-  // -----------------------------------
-  // COMANDOS DE VÁLVULAS
-  // -----------------------------------
   mqttClient.subscribe("mongo_garden/cmd/openRightValve");
   mqttClient.subscribe("mongo_garden/cmd/openLeftValve");
 
-  // -----------------------------------
-  // COMANDOS DE RTC Y WIFI
-  // -----------------------------------
   mqttClient.subscribe("mongo_garden/cmd/setTime");
   mqttClient.subscribe("mongo_garden/cmd/syncRtc");
   mqttClient.subscribe("mongo_garden/cmd/setWiFiParameters");
 
-  // -----------------------------------
-  // COMANDOS DE SUELO YA EXISTENTES
-  // -----------------------------------
   mqttClient.subscribe("mongo_garden/cmd/readSoil");
 
-  // -----------------------------------
-  // NUEVOS COMANDOS DE LECTURA INDIVIDUAL
-  // -----------------------------------
   mqttClient.subscribe("mongo_garden/cmd/read/dht/internal");
   mqttClient.subscribe("mongo_garden/cmd/read/dht/external");
   mqttClient.subscribe("mongo_garden/cmd/read/bmp");
   mqttClient.subscribe("mongo_garden/cmd/read/tsl");
 
-  // Publica los 16 slots de ambos lados
   mqttClient.subscribe("mongo_garden/cmd/read/soil/all");
-
-  // Payload esperado: canal,slot
-  // Ejemplo: 5,5
   mqttClient.subscribe("mongo_garden/cmd/read/soil/slot");
 
-  // Comandos genéricos del sistema
   mqttClient.subscribe("mongo_garden/cmd/system");
 
   mqttConectado = true;
-
-  // Avisar al dashboard que el MKR1000 está conectado
-
-    // Tiempo relativo (backup)
-  unsigned long nowMillis = millis();
-
-  // Tiempo absoluto del RTC (si está disponible)
-  long nowRtcSeconds = getRtcSeconds();
-  bool rtcOk = (nowRtcSeconds >= 0);
-
-  // Publicar qué fuente de tiempo estamos usando
-  if (rtcOk) {
-    publishTimeSource("RTC");
-  } else {
-    publishTimeSource("MILLIS");
-  }
-
 
   String Hora = getTime();
   mqttClient.publish("mongo_garden/status/system", "MQTT_CONNECTED " + Hora);
 }
 
-String setWiFiParameters(String newSsid, String newPass)
+String setWiFiParameters(uint8_t networkIndex, String newSsid, String newPassword)
 {
-    newSsid.trim();
-    newPass.trim();
+  if (networkIndex < 1 || networkIndex > WIFI_NETWORK_COUNT) {
+    return "ERROR: indice de red invalido. Usa 1, 2 o 3";
+  }
 
-    if (newSsid.length() == 0) {
-      return "SSID invalido";
-    }
+  newSsid.trim();
+  newPassword.trim();
 
-    if (newSsid.length() >= sizeof(ssid)) {
-      return "SSID demasiado largo";
-    }
+  if (newSsid.length() == 0) {
+    return "ERROR: SSID invalido";
+  }
 
-    if (newPass.length() >= sizeof(pass)) {
-      return "Password demasiado largo";
-    }
+  if (newSsid.length() >= sizeof(wifiSsids[0])) {
+    return "ERROR: SSID demasiado largo";
+  }
 
-    newSsid.toCharArray(ssid, sizeof(ssid));
-    newPass.toCharArray(pass, sizeof(pass));
+  if (newPassword.length() >= sizeof(wifiPasswords[0])) {
+    return "ERROR: password demasiado largo";
+  }
 
-    wifiConectado = false;
+  uint8_t arrayIndex = networkIndex - 1;
 
-    return "WiFi parameters actualizados | SSID: " + newSsid + " | PASSWORD: " + newPass;
+  newSsid.toCharArray(
+    wifiSsids[arrayIndex],
+    sizeof(wifiSsids[arrayIndex])
+  );
+
+  newPassword.toCharArray(
+    wifiPasswords[arrayIndex],
+    sizeof(wifiPasswords[arrayIndex])
+  );
+
+  wifiConectado = false;
+  mqttConectado = false;
+
+  if (sdOnline && !saveStartupVars()) {
+    return "ERROR: red actualizada en RAM, pero no se pudo guardar en SD";
+  }
+
+  return "WiFi " + String(networkIndex) +
+         " actualizada. SSID: " + newSsid;
 }
 
 String getBarometricPressure()
@@ -1790,4 +1908,422 @@ void handlerError(String Message, String Topic, String Mode)
 
 }
 
+bool ensureDirectory(const char* path)
+{
+  if (SD.exists(path)) {
+    return true;
+  }
 
+  return SD.mkdir(path);
+}
+
+bool copyJsonString(const char* source, char* destination, size_t destinationSize)
+{
+  if (source == nullptr || destination == nullptr || destinationSize == 0) {
+    return false;
+  }
+
+  if (strlen(source) >= destinationSize) {
+    return false;
+  }
+
+  strcpy(destination, source);
+  return true;
+}
+
+unsigned long validateInterval(unsigned long value, unsigned long fallback)
+{
+  // No se permiten intervalos menores de 1 segundo ni mayores de 24 horas.
+  if (value < 1000UL || value > 86400000UL) {
+    return fallback;
+  }
+
+  return value;
+}
+
+void updateTelemetryIntervalsInSeconds()
+{
+  DHT_INTERVAL_SEC  = max(1L, (long)(DHT_INTERVAL_MS / 1000UL));
+  BMP_INTERVAL_SEC  = max(1L, (long)(BMP_INTERVAL_MS / 1000UL));
+  TSL_INTERVAL_SEC  = max(1L, (long)(TSL_INTERVAL_MS / 1000UL));
+  SOIL_INTERVAL_SEC = max(1L, (long)(SOIL_INTERVAL_MS / 1000UL));
+}
+
+bool saveStartupVars()
+{
+  if (!sdOnline) {
+    return false;
+  }
+
+  StaticJsonDocument<1536> doc;
+
+  JsonArray networks = doc.createNestedArray("wifiNetworks");
+  for (uint8_t i = 0; i < WIFI_NETWORK_COUNT; i++) {
+    JsonObject network = networks.createNestedObject();
+    network["ssid"] = wifiSsids[i];
+    network["password"] = wifiPasswords[i];
+  }
+
+  JsonObject mqtt = doc.createNestedObject("mqtt");
+  mqtt["host"] = MQTT_HOST;
+  mqtt["port"] = MQTT_PORT;
+  mqtt["username"] = MQTT_USERNAME;
+  mqtt["password"] = MQTT_PASSWORD;
+
+  JsonObject ap = doc.createNestedObject("ap");
+  ap["ssid"] = ap_ssid;
+  ap["password"] = ap_pass;
+
+  JsonObject telemetry = doc.createNestedObject("telemetryIntervalsMs");
+  telemetry["dht"] = DHT_INTERVAL_MS;
+  telemetry["bmp"] = BMP_INTERVAL_MS;
+  telemetry["tsl"] = TSL_INTERVAL_MS;
+  telemetry["soil"] = SOIL_INTERVAL_MS;
+  telemetry["offlineSnapshot"] = OFFLINE_SNAPSHOT_INTERVAL_MS;
+
+  if (SD.exists(STARTUP_JSON_PATH)) {
+    SD.remove(STARTUP_JSON_PATH);
+  }
+
+  File file = SD.open(STARTUP_JSON_PATH, FILE_WRITE);
+  if (!file) {
+    Serial.println("ERROR: no se pudo crear startUpVars.json");
+    return false;
+  }
+
+  size_t written = serializeJsonPretty(doc, file);
+  file.close();
+
+  if (written == 0) {
+    Serial.println("ERROR: no se pudo escribir startUpVars.json");
+    return false;
+  }
+
+  Serial.println("startUpVars.json guardado");
+  return true;
+}
+
+bool loadStartupVars()
+{
+  if (!sdOnline || !SD.exists(STARTUP_JSON_PATH)) {
+    return false;
+  }
+
+  File file = SD.open(STARTUP_JSON_PATH, FILE_READ);
+  if (!file) {
+    Serial.println("ERROR: no se pudo abrir startUpVars.json");
+    return false;
+  }
+
+  StaticJsonDocument<1536> doc;
+  DeserializationError error = deserializeJson(doc, file);
+  file.close();
+
+  if (error) {
+    Serial.print("ERROR JSON: ");
+    Serial.println(error.c_str());
+    return false;
+  }
+
+  JsonArray networks = doc["wifiNetworks"].as<JsonArray>();
+
+  for (uint8_t i = 0; i < WIFI_NETWORK_COUNT; i++) {
+    if (i >= networks.size()) break;
+
+    const char* loadedSsid = networks[i]["ssid"];
+    const char* loadedPassword = networks[i]["password"];
+
+    if (loadedSsid && strlen(loadedSsid) > 0) {
+      copyJsonString(loadedSsid, wifiSsids[i], sizeof(wifiSsids[i]));
+    }
+    if (loadedPassword) {
+      copyJsonString(loadedPassword, wifiPasswords[i], sizeof(wifiPasswords[i]));
+    }
+  }
+
+  JsonObject mqtt = doc["mqtt"];
+  if (!mqtt.isNull()) {
+    const char* host = mqtt["host"];
+    const char* user = mqtt["username"];
+    const char* password = mqtt["password"];
+
+    if (host)     copyJsonString(host, MQTT_HOST, sizeof(MQTT_HOST));
+    if (user)     copyJsonString(user, MQTT_USERNAME, sizeof(MQTT_USERNAME));
+    if (password) copyJsonString(password, MQTT_PASSWORD, sizeof(MQTT_PASSWORD));
+
+    if (mqtt["port"].is<int>()) {
+      int port = mqtt["port"];
+      if (port > 0 && port <= 65535) {
+        MQTT_PORT = port;
+      }
+    }
+  }
+
+  JsonObject ap = doc["ap"];
+  if (!ap.isNull()) {
+    const char* accessPointSsid = ap["ssid"];
+    const char* accessPointPassword = ap["password"];
+
+    if (accessPointSsid) {
+      copyJsonString(accessPointSsid, ap_ssid, sizeof(ap_ssid));
+    }
+    if (accessPointPassword) {
+      copyJsonString(accessPointPassword, ap_pass, sizeof(ap_pass));
+    }
+  }
+
+  JsonObject telemetry = doc["telemetryIntervalsMs"];
+  if (!telemetry.isNull()) {
+    if (!telemetry["dht"].isNull()) {
+      DHT_INTERVAL_MS = validateInterval(telemetry["dht"].as<unsigned long>(), DHT_INTERVAL_MS);
+    }
+    if (!telemetry["bmp"].isNull()) {
+      BMP_INTERVAL_MS = validateInterval(telemetry["bmp"].as<unsigned long>(), BMP_INTERVAL_MS);
+    }
+    if (!telemetry["tsl"].isNull()) {
+      TSL_INTERVAL_MS = validateInterval(telemetry["tsl"].as<unsigned long>(), TSL_INTERVAL_MS);
+    }
+    if (!telemetry["soil"].isNull()) {
+      SOIL_INTERVAL_MS = validateInterval(telemetry["soil"].as<unsigned long>(), SOIL_INTERVAL_MS);
+    }
+    if (!telemetry["offlineSnapshot"].isNull()) {
+      OFFLINE_SNAPSHOT_INTERVAL_MS =
+        validateInterval(telemetry["offlineSnapshot"].as<unsigned long>(), OFFLINE_SNAPSHOT_INTERVAL_MS);
+    }
+  }
+
+  updateTelemetryIntervalsInSeconds();
+
+  Serial.println("Configuracion cargada desde startUpVars.json");
+  return true;
+}
+
+bool ensureSensorCsv()
+{
+  if (!sdOnline) {
+    return false;
+  }
+
+  if (SD.exists(SENSOR_CSV_PATH)) {
+    return true;
+  }
+
+  File file = SD.open(SENSOR_CSV_PATH, FILE_WRITE);
+
+  if (!file) {
+    Serial.println("ERROR: no se pudo crear sensor_log.csv");
+    return false;
+  }
+
+  file.print("timestamp,timeSource,wifiConnected,mqttConnected,");
+  file.print("internalTempC,internalHumidity,");
+  file.print("externalTempC,externalHumidity,");
+  file.print("bmpTempC,pressurePa,altitudeM,lux,uvIndex");
+
+  for (uint8_t slot = 0; slot < 16; slot++) {
+    file.print(",soilRight");
+    file.print(slot);
+    file.print(",soilLeft");
+    file.print(slot);
+  }
+
+  file.println();
+  file.close();
+
+  Serial.println("sensor_log.csv creado");
+  return true;
+}
+
+bool initStorageAndConfiguration()
+{
+  sdOnline = SD.begin(CS_PIN);
+
+  if (!sdOnline) {
+    Serial.println("ERROR: modulo SD no disponible");
+    return false;
+  }
+
+  Serial.println("Modulo SD inicializado");
+
+  if (!ensureDirectory(STARTUP_DIR)) {
+    Serial.println("ERROR: no se pudo crear /startup");
+    return false;
+  }
+
+  if (!ensureDirectory(DATA_DIR)) {
+    Serial.println("ERROR: no se pudo crear /data");
+    return false;
+  }
+
+  // Si el archivo no existe, se crea con los valores definidos en el sketch.
+  if (!SD.exists(STARTUP_JSON_PATH)) {
+    Serial.println("No existe startUpVars.json. Creando configuracion inicial...");
+
+    if (!saveStartupVars()) {
+      return false;
+    }
+  }
+
+  // Si existe, tiene prioridad la configuración guardada en SD.
+  if (!loadStartupVars()) {
+    Serial.println("Usando valores de respaldo definidos en el sketch");
+  }
+
+  if (!ensureSensorCsv()) {
+    return false;
+  }
+
+  return true;
+}
+
+void printCsvFloat(File& file, float value, uint8_t decimals)
+{
+  if (isnan(value)) {
+    return;
+  }
+
+  file.print(value, decimals);
+}
+
+void getCsvTimestamp(char* buffer, size_t bufferSize)
+{
+  if (Rtcmod.IsDateTimeValid()) {
+    RtcDateTime now = Rtcmod.GetDateTime();
+
+    snprintf(
+      buffer,
+      bufferSize,
+      "%04u-%02u-%02u %02u:%02u:%02u",
+      now.Year(),
+      now.Month(),
+      now.Day(),
+      now.Hour(),
+      now.Minute(),
+      now.Second()
+    );
+
+    return;
+  }
+
+  snprintf(buffer, bufferSize, "millis_%lu", millis());
+}
+
+bool logOfflineSnapshot()
+{
+  if (!sdOnline) {
+    return false;
+  }
+
+  File file = SD.open(SENSOR_CSV_PATH, FILE_WRITE);
+
+  if (!file) {
+    Serial.println("ERROR: no se pudo abrir sensor_log.csv");
+    return false;
+  }
+
+  // Lecturas DHT.
+  float internalHumidity = dhtinterno.readHumidity();
+  float internalTemp = dhtinterno.readTemperature();
+
+  float externalHumidity = dhtexterno.readHumidity();
+  float externalTemp = dhtexterno.readTemperature();
+
+  // Lecturas BMP180.
+  float bmpTemp = NAN;
+  float altitude = NAN;
+  int32_t pressure = -1;
+
+  if (BMP_ONLINE) {
+    bmpTemp = bmp.readTemperature();
+    pressure = bmp.readPressure();
+    altitude = bmp.readAltitude();
+  }
+
+  // Lecturas TSL2561.
+  float lux = NAN;
+  float uvIndex = NAN;
+
+  if (TSL_ONLINE) {
+    sensors_event_t event;
+    tsl.getEvent(&event);
+
+    lux = event.light;
+    uvIndex = event.light / 2500.0f;
+  }
+
+  // Se actualizan los 16 sensores por ambos lados.
+  for (uint8_t slot = 0; slot < 16; slot++) {
+    measureSoilSlot(slot);
+  }
+
+  char timestamp[24];
+  getCsvTimestamp(timestamp, sizeof(timestamp));
+
+  file.print(timestamp);
+  file.print(",");
+  file.print(Rtcmod.IsDateTimeValid() ? "RTC" : "MILLIS");
+  file.print(",");
+  file.print((WiFi.status() == WL_CONNECTED) ? "1" : "0");
+  file.print(",");
+  file.print((mqttConectado && mqttClient.connected()) ? "1" : "0");
+  file.print(",");
+
+  printCsvFloat(file, internalTemp, 1);
+  file.print(",");
+  printCsvFloat(file, internalHumidity, 1);
+  file.print(",");
+  printCsvFloat(file, externalTemp, 1);
+  file.print(",");
+  printCsvFloat(file, externalHumidity, 1);
+  file.print(",");
+  printCsvFloat(file, bmpTemp, 1);
+  file.print(",");
+
+  if (pressure >= 0) {
+    file.print(pressure);
+  }
+
+  file.print(",");
+  printCsvFloat(file, altitude, 1);
+  file.print(",");
+  printCsvFloat(file, lux, 1);
+  file.print(",");
+  printCsvFloat(file, uvIndex, 2);
+
+  for (uint8_t slot = 0; slot < 16; slot++) {
+    file.print(",");
+    file.print(humidityValuesRight[slot]);
+    file.print(",");
+    file.print(humidityValuesLeft[slot]);
+  }
+
+  file.println();
+  file.close();
+
+  Serial.println("Snapshot offline almacenado en sensor_log.csv");
+  return true;
+}
+
+void handleOfflineLogging()
+{
+  bool mqttAvailable =
+    wifiConectado &&
+    WiFi.status() == WL_CONNECTED &&
+    mqttConectado &&
+    mqttClient.connected();
+
+  // Si MQTT funciona, no se duplica la telemetría en SD.
+  if (mqttAvailable) {
+    return;
+  }
+
+  unsigned long now = millis();
+
+  if (lastOfflineSnapshotMillis == 0 ||
+      now - lastOfflineSnapshotMillis >= OFFLINE_SNAPSHOT_INTERVAL_MS) {
+
+    if (logOfflineSnapshot()) {
+      lastOfflineSnapshotMillis = now;
+    }
+  }
+}
