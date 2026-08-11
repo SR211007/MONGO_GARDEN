@@ -15,7 +15,7 @@
   #include <Adafruit_BMP085.h>
   #include <WebSocketsServer_Generic.h>
   #include <Adafruit_TSL2561_U.h>
-  #define DEMOPIN A6
+  #define BATTERYPIN A6
   #define SIG1 A0
   #define SIG2 A1
   #define RELAYR A2
@@ -138,12 +138,12 @@
 
 
 
-  int demoMode;
+  float battery;
 //end
 
 void setup() 
 {
-  pinMode(DEMOPIN, INPUT);
+  pinMode(BATTERYPIN, INPUT);
   pinMode(RELAYR, OUTPUT);
   pinMode(RELAYL, OUTPUT);
   pinMode(SIG1, INPUT);
@@ -180,9 +180,7 @@ void setup()
   if (!tsl.begin()) {Serial.println("Error inicializando TSL2561"); TSL_ONLINE = false;} else {Serial.println("TSL2561 inicializado"); tsl.setGain(TSL2561_GAIN_1X); tsl.setIntegrationTime(TSL2561_INTEGRATIONTIME_13MS); TSL_ONLINE = true;}
   if (!initStorageAndConfiguration()) {
   Serial.println("ADVERTENCIA: SD o configuracion no disponible");}
-  demoMode = digitalRead(DEMOPIN);
-  if (demoMode == 1) {Serial.println("DEMO MODE ACTIVE");}
-  Serial.println("Version - 2026-08-04-12-35");
+  Serial.println("Version - 2026-08-11-13-54");
   Serial.println("------FIN INICIO------");
   digitalWrite(RELAYS, LOW);
   digitalWrite(RELAYR, LOW);
@@ -222,22 +220,6 @@ void loop()
     }
   }
 
-  // Conserva tu comportamiento: telemetría normal solo cuando demoMode es 1.
-  demoMode = digitalRead(DEMOPIN);
-
-  if (demoMode == 1) {
-    bool mqttAvailable =
-      wifiConectado &&
-      mqttConectado &&
-      WiFi.status() == WL_CONNECTED &&
-      mqttClient.connected();
-
-    if (mqttAvailable) {
-      handleTelemetryLoop();
-    } else {
-      handleOfflineLogging();
-    }
-  }
 
   // Los comandos Serial siguen funcionando incluso sin red.
   serialRead();
@@ -259,6 +241,7 @@ void serialRead()
     if (handleSoilCommand(input)) return;
 
     Serial.println("Comando no reconocido. Usa uno de estos:");
+    Serial.println("  GET_BATTERY");
     Serial.println("  SYNC_RTC");
     Serial.println("  GET_TIME");
     Serial.println("  GET_BMP_DATA");
@@ -273,7 +256,7 @@ void serialRead()
     Serial.println("|---|");
 }
 
-void handleTelemetryLoop()
+/*void handleTelemetryLoop()
 {
   demoMode = digitalRead(DEMOPIN);
   if (demoMode == 0) {
@@ -372,7 +355,7 @@ void handleTelemetryLoop()
       lastSoilPublishMillis = nowMillis;
     }
   }
-}
+} */
 
 void mqttMessageReceived(String &topic, String &payload)
 {
@@ -444,6 +427,19 @@ void mqttMessageReceived(String &topic, String &payload)
   // ===================================
   // COMANDOS DE LECTURA INDIVIDUAL
   // ===================================
+
+  // Leer y publicar estado de la bateria
+  if (topic == "mongo_garden/cmd/read/battery") {
+    battery = analogRead(BATTERYPIN);
+    mqttClient.publish("mongo_garden/telemetry/battery", String(battery));
+
+    mqttClient.publish(
+      "mongo_garden/status/system",
+      "READ_BATTERY_COMPLETED| " + String(getTime())
+    );
+
+    return;
+  }
 
   // Leer y publicar DHT interno
   if (topic == "mongo_garden/cmd/read/dht/internal") {
@@ -819,6 +815,12 @@ String handleSetTimePayload(String payload)
 
 bool handleSimpleCommand(String input)
 {
+    if (input == "GET_BATTERY") {
+      battery = analogRead(BATTERYPIN);
+      Serial.println("ESTADO DE LA BATERÍA: " + String(battery));
+      return true;
+    }
+    
     if (input == "SYNC_RTC") {
       connectWiFi();
       Serial.println(syncRtcWithInternet());
@@ -1448,7 +1450,6 @@ void connectMQTT()
   }
 
   Serial.println("MQTT conectado");
-
   mqttClient.subscribe("mongo_garden/cmd/openRightValve");
   mqttClient.subscribe("mongo_garden/cmd/openLeftValve");
 
@@ -1462,6 +1463,7 @@ void connectMQTT()
   mqttClient.subscribe("mongo_garden/cmd/read/dht/external");
   mqttClient.subscribe("mongo_garden/cmd/read/bmp");
   mqttClient.subscribe("mongo_garden/cmd/read/tsl");
+  mqttClient.subscribe("mongo_garden/cmd/read/battery");
 
   mqttClient.subscribe("mongo_garden/cmd/read/soil/all");
   mqttClient.subscribe("mongo_garden/cmd/read/soil/slot");
@@ -1475,7 +1477,7 @@ void connectMQTT()
 }
 
 String setWiFiParameters(uint8_t networkIndex, String newSsid, String newPassword)
-{
+  {
   if (networkIndex < 1 || networkIndex > WIFI_NETWORK_COUNT) {
     return "ERROR: indice de red invalido. Usa 1, 2 o 3";
   }
@@ -1516,7 +1518,7 @@ String setWiFiParameters(uint8_t networkIndex, String newSsid, String newPasswor
 
   return "WiFi " + String(networkIndex) +
          " actualizada. SSID: " + newSsid;
-}
+  }
 
 String getBarometricPressure()
 {
