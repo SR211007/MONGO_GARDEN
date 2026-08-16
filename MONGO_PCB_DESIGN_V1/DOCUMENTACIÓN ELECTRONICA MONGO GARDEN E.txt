@@ -12,8 +12,6 @@ A0, A1 <---- pines entrada multiplexor
 A2 <---- relay solenoide derecho
 A3 <---- relay solenoide izquierdo
 A4 <---- relay regla de sensores
-A6 <---- demo pin
+A6 <---- lector batería
 
-mqtt user mkr1000
-mqtt pwr mkr1000pwr
 
