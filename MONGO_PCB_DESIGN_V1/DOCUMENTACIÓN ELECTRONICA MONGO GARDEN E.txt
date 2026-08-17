@@ -2,7 +2,7 @@ DOCUMENTACIÓN CODIGO MONGO GARDEN EN MKR1000
 V1
 by: SR211007
 ------------------------------------------
-DICCIONARIO DE PINES
+LISTA PINES MKR1000:
 0, 1, 2, 3, 4 <---- pines control multiplexor (pin 4 habilitador)
 A0, A1 <---- pines entrada multiplexor
 5 <---- dht11 exterior
@@ -13,5 +13,10 @@ A2 <---- relay solenoide derecho
 A3 <---- relay solenoide izquierdo
 A4 <---- relay regla de sensores
 A6 <---- lector batería
+
+21
+
+
+LISTA PINES ESP32-S3
 
 
