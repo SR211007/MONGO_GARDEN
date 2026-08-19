@@ -4,7 +4,7 @@
 	(generator_version "9.0")
 	(layer "F.Cu")
 	(property "Reference" "DS1302"
-		(at 3.6172 1.0216 0)
+		(at 26.266133 3.180919 0)
 		(unlocked yes)
 		(layer "F.SilkS")
 		(uuid "e327cdc7-efc5-4bb2-89bd-827207a9ee89")
