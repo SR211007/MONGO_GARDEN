@@ -1,0 +1,188 @@
+(footprint "Soil_Moisture_Sensor_Module"
+	(version 20241229)
+	(generator "pcbnew")
+	(generator_version "9.0")
+	(layer "F.Cu")
+	(property "Reference" "REF**"
+		(at 0 -5.08 0)
+		(unlocked yes)
+		(layer "F.SilkS")
+		(hide yes)
+		(uuid "710ecb29-34af-4b2b-8503-b00e79c2cc85")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.1)
+			)
+		)
+	)
+	(property "Value" "HUM.SENSOR.LD"
+		(at -1.27 1.27 0)
+		(unlocked yes)
+		(layer "F.SilkS")
+		(uuid "870e01c1-316f-4d9f-85ba-151afb418484")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Datasheet" ""
+		(at 0 0 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "7a9a5596-64bb-4455-a433-934471c39caa")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Description" ""
+		(at 0 0 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "2ef6cae3-2f93-422b-8302-ab0a824adca0")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(attr smd)
+	(fp_rect
+		(start -14.76 -5.715)
+		(end 15.24 8.255)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.SilkS")
+		(uuid "7d45c851-5d33-48c3-953a-ab147e505f88")
+	)
+	(fp_text user "GND"
+		(at 5.08 3.175 0)
+		(unlocked yes)
+		(layer "F.SilkS")
+		(uuid "3ece7433-54d8-4f0b-b1d1-ace589be7446")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.2)
+				(bold yes)
+			)
+			(justify left bottom)
+		)
+	)
+	(fp_text user "VCC"
+		(at -18.415 5.715 0)
+		(unlocked yes)
+		(layer "F.SilkS")
+		(uuid "b29775e7-9c9e-4a74-a684-8edaec4b511c")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.2)
+				(bold yes)
+			)
+			(justify left bottom)
+		)
+	)
+	(fp_text user "AO"
+		(at -18.415 -1.905 0)
+		(unlocked yes)
+		(layer "F.SilkS")
+		(uuid "c0199073-6176-4eaf-a796-423609c5dc69")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.2)
+				(bold yes)
+			)
+			(justify left bottom)
+		)
+	)
+	(fp_text user "DO"
+		(at -18.415 0.635 0)
+		(unlocked yes)
+		(layer "F.SilkS")
+		(uuid "d32e6f66-2bb5-4629-8135-91c3c2cc7b0f")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.2)
+				(bold yes)
+			)
+			(justify left bottom)
+		)
+	)
+	(fp_text user "GND"
+		(at -18.415 3.175 0)
+		(unlocked yes)
+		(layer "F.SilkS")
+		(uuid "e8f90a5e-9ee3-4541-95ee-992cabf2b487")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.2)
+				(bold yes)
+			)
+			(justify left bottom)
+		)
+	)
+	(pad "1" thru_hole circle
+		(at -12.7 -2.54)
+		(size 1.7 1.7)
+		(drill 1)
+		(layers "*.Cu" "*.Mask")
+		(remove_unused_layers no)
+		(uuid "d6ef4668-5fb3-4c71-b5de-47e9b69cb502")
+	)
+	(pad "2" thru_hole circle
+		(at -12.7 0)
+		(size 1.7 1.7)
+		(drill 1)
+		(layers "*.Cu" "*.Mask")
+		(remove_unused_layers no)
+		(uuid "f7c166ff-c535-4a8c-90eb-1f20cdb5d368")
+	)
+	(pad "3" thru_hole circle
+		(at -12.7 2.54)
+		(size 1.7 1.7)
+		(drill 1)
+		(layers "*.Cu" "*.Mask")
+		(remove_unused_layers no)
+		(uuid "77cdc228-0911-43fa-9580-34cec4baaf3e")
+	)
+	(pad "4" thru_hole circle
+		(at -12.7 5.08)
+		(size 1.7 1.7)
+		(drill 1)
+		(layers "*.Cu" "*.Mask")
+		(remove_unused_layers no)
+		(uuid "db39d468-b711-478d-87a2-e14ac3cf4a1f")
+	)
+	(pad "5" thru_hole oval
+		(at 11.43 0)
+		(size 4.7 1.7)
+		(drill oval 4 1)
+		(layers "*.Cu" "*.Mask")
+		(remove_unused_layers no)
+		(uuid "dd57e9ab-f9c6-443e-b6f8-1c5319738246")
+	)
+	(pad "6" thru_hole oval
+		(at 11.43 2.54)
+		(size 4.7 1.7)
+		(drill oval 4 1)
+		(layers "*.Cu" "*.Mask")
+		(remove_unused_layers no)
+		(uuid "a6497708-ef1b-48f7-8ab1-cabd05e426ee")
+	)
+	(embedded_fonts no)
+)
