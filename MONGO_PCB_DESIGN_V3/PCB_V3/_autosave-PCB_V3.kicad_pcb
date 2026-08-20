@@ -3873,7 +3873,7 @@
 	(footprint "LOGO"
 		(layer "F.Cu")
 		(uuid "506888d6-6f4d-476c-9dea-8febaaccb07e")
-		(at 71.866609 35.582821)
+		(at 312.181771 32.535723)
 		(property "Reference" "G***"
 			(at 0 0 0)
 			(layer "F.SilkS")

@@ -367,10 +367,10 @@
 		(uuid "11391efc-a5a1-4ff1-a7b7-124093b540f1")
 	)
 	(fp_rect
-		(start 0 0)
-		(end 18 23.5)
+		(start -0.28 0)
+		(end 18.28 23.75)
 		(stroke
-			(width 0.01)
+			(width 0.1)
 			(type solid)
 		)
 		(fill no)

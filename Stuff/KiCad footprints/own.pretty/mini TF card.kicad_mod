@@ -3,8 +3,8 @@
 	(generator "pcbnew")
 	(generator_version "9.0")
 	(layer "F.Cu")
-	(property "Reference" "REF**"
-		(at 0 -0.5 0)
+	(property "Reference" "Mini TF Card Reader Generic"
+		(at 12.7 2.54 0)
 		(unlocked yes)
 		(layer "F.SilkS")
 		(uuid "65320748-49eb-4b37-aa25-751b2457c3c4")
@@ -55,8 +55,8 @@
 	)
 	(attr through_hole)
 	(fp_line
-		(start 37.02 17.08)
-		(end 37.02 4.27)
+		(start 37.02 17.6975)
+		(end 37.02 4.8875)
 		(stroke
 			(width 0.12)
 			(type solid)
@@ -65,8 +65,8 @@
 		(uuid "11563fb1-cea3-4995-a6ff-0b78257a3a4a")
 	)
 	(fp_line
-		(start 39.78 4.27)
-		(end 37.02 4.27)
+		(start 39.78 4.8875)
+		(end 37.02 4.8875)
 		(stroke
 			(width 0.12)
 			(type solid)
@@ -75,8 +75,8 @@
 		(uuid "4a94e69e-df66-49a9-bac6-6fba6d00f4ea")
 	)
 	(fp_line
-		(start 39.78 17.08)
-		(end 37.02 17.08)
+		(start 39.78 17.6975)
+		(end 37.02 17.6975)
 		(stroke
 			(width 0.12)
 			(type solid)
@@ -85,8 +85,8 @@
 		(uuid "4efb6515-c67f-4511-ba7c-b6c095f2617a")
 	)
 	(fp_line
-		(start 39.78 17.08)
-		(end 39.78 4.27)
+		(start 39.78 17.6975)
+		(end 39.78 4.8875)
 		(stroke
 			(width 0.12)
 			(type solid)
@@ -95,8 +95,8 @@
 		(uuid "5a368cf7-d1e4-40f5-97d4-0b93b0507e19")
 	)
 	(fp_line
-		(start 39.78 18.35)
-		(end 39.78 19.73)
+		(start 39.78 18.9675)
+		(end 39.78 20.3475)
 		(stroke
 			(width 0.12)
 			(type solid)
@@ -105,8 +105,8 @@
 		(uuid "536370fd-ddde-45f6-93ed-187e62d556e0")
 	)
 	(fp_line
-		(start 39.78 19.73)
-		(end 38.4 19.73)
+		(start 39.78 20.3475)
+		(end 38.4 20.3475)
 		(stroke
 			(width 0.12)
 			(type solid)
@@ -116,62 +116,18 @@
 	)
 	(fp_rect
 		(start 0 0)
-		(end 42 24)
+		(end 42 25)
 		(stroke
 			(width 0.1)
-			(type default)
+			(type solid)
 		)
 		(fill no)
 		(layer "F.SilkS")
 		(uuid "e25d44e9-ede7-46b3-ad9b-bb41b14fc9f6")
 	)
-	(fp_circle
-		(center 2.5 2.5)
-		(end 3.6 2.5)
-		(stroke
-			(width 0.1)
-			(type default)
-		)
-		(fill no)
-		(layer "F.SilkS")
-		(uuid "56adfc76-4f12-47c5-a46d-a6ca7f28b32b")
-	)
-	(fp_circle
-		(center 2.5 21.5)
-		(end 3.6 21.5)
-		(stroke
-			(width 0.1)
-			(type default)
-		)
-		(fill no)
-		(layer "F.SilkS")
-		(uuid "5a7121a2-cc82-498d-b672-3946a5aa93b6")
-	)
-	(fp_circle
-		(center 39.5 2.5)
-		(end 40.6 2.5)
-		(stroke
-			(width 0.1)
-			(type default)
-		)
-		(fill no)
-		(layer "F.SilkS")
-		(uuid "6f497c75-fb5b-4acf-99ff-b4e154f2cda2")
-	)
-	(fp_circle
-		(center 39.5 21.5)
-		(end 40.6 21.5)
-		(stroke
-			(width 0.1)
-			(type default)
-		)
-		(fill no)
-		(layer "F.SilkS")
-		(uuid "031d3615-5ff7-43d3-8afa-22a3c9844558")
-	)
 	(fp_line
-		(start 37.13 4.38)
-		(end 39.67 4.38)
+		(start 37.13 4.9975)
+		(end 39.67 4.9975)
 		(stroke
 			(width 0.1)
 			(type solid)
@@ -180,8 +136,8 @@
 		(uuid "7d098d3b-e551-4c63-9c13-49e2dabe30ee")
 	)
 	(fp_line
-		(start 37.13 19.62)
-		(end 37.13 4.38)
+		(start 37.13 20.2375)
+		(end 37.13 4.9975)
 		(stroke
 			(width 0.1)
 			(type solid)
@@ -190,8 +146,8 @@
 		(uuid "ca0ce561-16a7-4f02-9456-e7a17bf574af")
 	)
 	(fp_line
-		(start 39.035 19.62)
-		(end 37.13 19.62)
+		(start 39.035 20.2375)
+		(end 37.13 20.2375)
 		(stroke
 			(width 0.1)
 			(type solid)
@@ -200,8 +156,8 @@
 		(uuid "7152b89b-9057-4b1b-b1ea-f78f47090a49")
 	)
 	(fp_line
-		(start 39.67 4.38)
-		(end 39.67 18.985)
+		(start 39.67 4.9975)
+		(end 39.67 19.6025)
 		(stroke
 			(width 0.1)
 			(type solid)
@@ -210,8 +166,8 @@
 		(uuid "094896cd-f482-4618-bf60-31c22ff7f7e6")
 	)
 	(fp_line
-		(start 39.67 18.985)
-		(end 39.035 19.62)
+		(start 39.67 19.6025)
+		(end 39.035 20.2375)
 		(stroke
 			(width 0.1)
 			(type solid)
@@ -232,8 +188,8 @@
 		)
 	)
 	(fp_text_box "CS\n\n\nSCK\n\n\nMOSI\n\n\nMISO\n\n\nVCC\n\n\nGND"
-		(start 33.65 3.975)
-		(end 39.15 15.025)
+		(start 32.95 4.61)
+		(end 38.45 15.66)
 		(margins 1.0025 1.0025 1.0025 1.0025)
 		(layer "F.SilkS")
 		(uuid "361fa360-921c-4772-ba0d-fccf554618fb")
@@ -251,7 +207,7 @@
 		)
 	)
 	(pad "1" thru_hole rect
-		(at 38.4 18.35 180)
+		(at 38.4 18.9675 180)
 		(size 1.7 1.7)
 		(drill 1)
 		(layers "*.Cu" "*.Mask")
@@ -259,7 +215,7 @@
 		(uuid "b5dbbb3b-be6c-4c2c-b8e8-4ccf84831420")
 	)
 	(pad "2" thru_hole circle
-		(at 38.4 15.81 180)
+		(at 38.4 16.4275 180)
 		(size 1.7 1.7)
 		(drill 1)
 		(layers "*.Cu" "*.Mask")
@@ -267,7 +223,7 @@
 		(uuid "2c573dc3-0c3d-48a5-90a7-dbd721b080c3")
 	)
 	(pad "3" thru_hole circle
-		(at 38.4 13.27 180)
+		(at 38.4 13.8875 180)
 		(size 1.7 1.7)
 		(drill 1)
 		(layers "*.Cu" "*.Mask")
@@ -275,7 +231,7 @@
 		(uuid "dc705fa3-350f-45b7-97b1-458b9c5ec333")
 	)
 	(pad "4" thru_hole circle
-		(at 38.4 10.73 180)
+		(at 38.4 11.3475 180)
 		(size 1.7 1.7)
 		(drill 1)
 		(layers "*.Cu" "*.Mask")
@@ -283,7 +239,7 @@
 		(uuid "d720d91f-f327-44ff-9f7b-7088a5227d5d")
 	)
 	(pad "5" thru_hole circle
-		(at 38.4 8.19 180)
+		(at 38.4 8.8075 180)
 		(size 1.7 1.7)
 		(drill 1)
 		(layers "*.Cu" "*.Mask")
@@ -291,7 +247,7 @@
 		(uuid "1be0d22f-e137-4c55-bbb7-a0d5da869619")
 	)
 	(pad "6" thru_hole circle
-		(at 38.4 5.65 180)
+		(at 38.4 6.2675 180)
 		(size 1.7 1.7)
 		(drill 1)
 		(layers "*.Cu" "*.Mask")
