@@ -1,4 +1,4 @@
-27236881218854319
+27236872014050858
 Audio_Module
 Reverb_BTDR-1H
 Digital Reverberation Unit, http://www.belton.co.kr/inc/downfile.php?seq=17&file=pdf (footprint from http://www.uk-electronic.de/PDF/BTDR-1.pdf)
@@ -107933,6 +107933,13 @@ ESP32-WROOM-32D-personal
 60
 39
 own
+MICROSD
+
+
+0
+6
+6
+own
 Module PCF8575
 
 
@@ -107967,10 +107974,3 @@ mini TF card
 0
 6
 6
-own-l
-TensarRobot_CD74HC4067
-
-
-0
-24
-24
