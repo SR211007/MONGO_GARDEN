@@ -37,9 +37,9 @@
         "other_text_thickness": 0.15,
         "other_text_upright": false,
         "pads": {
-          "drill": 1.0,
-          "height": 1.7,
-          "width": 1.7
+          "drill": 0.0,
+          "height": 1.27,
+          "width": 2.1
         },
         "silk_line_width": 0.1,
         "silk_text_italic": false,
@@ -58,36 +58,7 @@
           "width": 0.0
         }
       ],
-      "drc_exclusions": [
-        [
-          "lib_footprint_mismatch|26145000|34635000|dbcf64be-bd26-4f8a-9c69-75cca2c885cb|00000000-0000-0000-0000-000000000000",
-          ""
-        ],
-        [
-          "lib_footprint_mismatch|95961200|17272000|64219c7d-77c4-4f7c-aab6-ff653eef65d6|00000000-0000-0000-0000-000000000000",
-          ""
-        ],
-        [
-          "text_height|21249200|93928800|32a821d8-054a-4219-9068-38be7663f058|00000000-0000-0000-0000-000000000000",
-          ""
-        ],
-        [
-          "text_height|59880000|100600000|9171ce2e-77bf-4364-aced-b6a1d5439425|00000000-0000-0000-0000-000000000000",
-          ""
-        ],
-        [
-          "text_height|59880000|106600000|f51c2e98-4a81-4d44-98b1-5f1ce9abf232|00000000-0000-0000-0000-000000000000",
-          ""
-        ],
-        [
-          "text_height|74930000|20320000|262a6c61-06fb-4cca-a419-3a4a665ab902|00000000-0000-0000-0000-000000000000",
-          ""
-        ],
-        [
-          "text_height|87630000|20523200|d70aa83d-2d79-4c28-bdcd-5122c86e6eda|00000000-0000-0000-0000-000000000000",
-          ""
-        ]
-      ],
+      "drc_exclusions": [],
       "meta": {
         "version": 2
       },
@@ -216,10 +187,7 @@
         }
       ],
       "track_widths": [
-        0.0,
-        0.2,
-        0.4,
-        1.0
+        0.0
       ],
       "tuning_pattern_settings": {
         "diff_pair_defaults": {
