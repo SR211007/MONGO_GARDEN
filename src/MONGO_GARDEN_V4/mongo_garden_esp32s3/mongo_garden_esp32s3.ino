@@ -235,7 +235,7 @@ void setup()
   if (!tsl.begin()) {Serial.println("Error inicializando TSL2561"); TSL_ONLINE = false;} else {Serial.println("TSL2561 inicializado"); tsl.setGain(TSL2561_GAIN_1X); tsl.setIntegrationTime(TSL2561_INTEGRATIONTIME_13MS); TSL_ONLINE = true;}
   if (!initStorageAndConfiguration()) {
   Serial.println("ADVERTENCIA: SD o configuracion no disponible");}
-  Serial.println("Version - 2026-08-23-ESP32S3");
+  Serial.println("Version - 2026-08-27-ESP32S3");
   Serial.println("------FIN INICIO------");
   digitalWrite(RELAYS, LOW);
   digitalWrite(RELAYR, LOW);
@@ -1519,11 +1519,12 @@ void connectMQTT()
     delay(2000);
   }
 
-  if (!mqttClient.connected()) {
+  if (!mqttClient.connected()) 
+  {
     Serial.println("No se pudo conectar al broker MQTT");
     mqttConectado = false;
     return;
-  }
+    }
 
   Serial.println("MQTT conectado");
   mqttClient.subscribe("mongo_garden/cmd/openRightValve");
