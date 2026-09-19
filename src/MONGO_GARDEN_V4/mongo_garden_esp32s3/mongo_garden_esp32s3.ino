@@ -32,6 +32,7 @@
   #include <WebSocketsServer_Generic.h>  // en ESP32 se autodetecta, sin defines
   #include <Adafruit_TSL2561_U.h>
   #include <time.h>                      // NTP: configTime / getLocalTime
+  #include <Adafruit_AHTX0.h>
 
 // ============================================================
 // MAPEO DE PINES ESP32-S3
@@ -45,10 +46,10 @@
 // ============================================================
   #define SIG1        17   // ADC1_CH0 - humedad suelo lado derecho (antes A0)
   #define SIG2        18   // ADC1_CH1 - humedad suelo lado izquierdo (antes A1)
-  #define BATTERYPIN  36    // ADC1_CH3 - divisor de bateria (antes A6)
+  #define BATTERYPIN  41    // ADC1_CH3 - divisor de bateria (antes A6)
 
-  #define DHT_EXT_PIN 5    // DHT11 externo (antes pin 5)
-  #define DHT_INT_PIN 6    // DHT11 interno (antes pin 6)
+  #define DHT_EXT_PIN 21    // DHT11 externo (antes pin 5)
+  #define DHT_INT_PIN 33    // DHT11 interno (antes pin 6)
 
   #define RTC_CE      2    // DS1302 RST/CE (antes A5)
   #define I2C_SDA     10    // BMP180 + TSL2561 (por defecto en ESP32-S3)
@@ -57,22 +58,23 @@
   #define SD_SCK      6
   #define SD_MISO     7
 
-  #define RELAYR      21   // valvula derecha (antes A2)
-  #define RELAYL      33   // valvula izquierda (antes A3)
-  #define RELAYS      34   // rele maestro sensores suelo (antes A4)
+  #define RELAYR      48   // valvula derecha (antes A2)
+  #define RELAYL      47   // valvula izquierda (antes A3)
+  #define RELAYS      45   // rele maestro sensores suelo (antes A4)
+  #define V5RAIL      9 
 
-  #define S0          18   // multiplexor CD74HC4067
-  #define S1          21
-  #define S2          38
-  #define S3          39
-  #define EN          40
+  #define S0          13   // multiplexor CD74HC4067
+  #define S1          14
+  #define S2          15
+  #define S3          16
+  #define EN          12
 
   #define RTC_IO      3   // DS1302 I/O (antes pin 13)
-  #define RTC_CLK     42   // DS1302 SCLK (antes pin 14)
+  #define RTC_CLK     4   // DS1302 SCLK (antes pin 14)
 
   enum FunctionMode { SET_AND_READ = 0, SET_ONLY = 1, READ_ONLY = 2 };
   enum GardenSide { RIGHT_SIDE = 0, LEFT_SIDE = 1, BOTH_SIDES = 2 };
-  const int CS_PIN = 10;   // CS del modulo SD (antes pin 7)
+  const int CS_PIN = 5;   // CS del modulo SD (antes pin 7)
 
 //startVars-
   Adafruit_BMP085 bmp;
@@ -123,7 +125,8 @@
     float uvIndex;
 
   File archivo;
-
+  
+  Adafruit_AHTX0 aht;
 
 
   int humidityValuesRight[16];
@@ -189,6 +192,7 @@ void setup()
   pinMode(BATTERYPIN, INPUT);
   pinMode(RELAYR, OUTPUT);
   pinMode(RELAYL, OUTPUT);
+  pinMode(V5RAIL, OUTPUT);
   pinMode(SIG1, INPUT);
   pinMode(SIG2, INPUT);
   pinMode(RELAYS, OUTPUT);
@@ -235,7 +239,7 @@ void setup()
   if (!tsl.begin()) {Serial.println("Error inicializando TSL2561"); TSL_ONLINE = false;} else {Serial.println("TSL2561 inicializado"); tsl.setGain(TSL2561_GAIN_1X); tsl.setIntegrationTime(TSL2561_INTEGRATIONTIME_13MS); TSL_ONLINE = true;}
   if (!initStorageAndConfiguration()) {
   Serial.println("ADVERTENCIA: SD o configuracion no disponible");}
-  Serial.println("Version - 2026-08-23-ESP32S3");
+  Serial.println("Version - 2026-09-19-ESP32S3");
   Serial.println("------FIN INICIO------");
   digitalWrite(RELAYS, LOW);
   digitalWrite(RELAYR, LOW);
