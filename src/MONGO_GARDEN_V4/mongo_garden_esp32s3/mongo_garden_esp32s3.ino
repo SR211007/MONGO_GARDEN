@@ -48,8 +48,8 @@
   #define SIG2        18   // ADC1_CH1 - humedad suelo lado izquierdo (antes A1)
   #define BATTERYPIN  41    // ADC1_CH3 - divisor de bateria (antes A6)
 
-  #define DHT_EXT_PIN 21    // DHT11 externo (antes pin 5)
-  #define DHT_INT_PIN 33    // DHT11 interno (antes pin 6)
+  // DHT DESCONTINUADO #define DHT_EXT_PIN 21    // DHT11 externo (antes pin 5)
+  //                   #define DHT_INT_PIN 33    // DHT11 interno (antes pin 6)
 
   #define RTC_CE      2    // DS1302 RST/CE (antes A5)
   #define I2C_SDA     10    // BMP180 + TSL2561 (por defecto en ESP32-S3)
@@ -86,15 +86,9 @@
   RtcDS1302<ThreeWire> Rtcmod(wireClock);
   String dateTime;
 
+    Adafruit_AHTX0 aht;
+    
 
-  DHT dhtexterno(DHT_EXT_PIN, DHT11);
-    float internalTemp;
-    float internalAirHumidity;
-
-
-  DHT dhtinterno(DHT_INT_PIN, DHT11);
-    float externalAirTemp;
-    float externalAirHumidity;
 
   WiFiClient net;
   WiFiServer server(80);          // Servidor HTTP normal para cargar la web (Puerto 80)
