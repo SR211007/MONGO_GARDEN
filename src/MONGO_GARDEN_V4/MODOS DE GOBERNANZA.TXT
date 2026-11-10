@@ -1,0 +1,50 @@
+MODO 1 Superávit energético :
+
+&#x09;Condiciones:
+
+&#x09;- Generación de panel solar > consumo total del sistema
+
+&#x09;- % de la batería superior al 60%
+
+&#x09;- Entre las 6 am y 6pm
+
+&#x09;Funcionamiento:
+
+&#x09;- El controlador se mantiene siempre encendido y a la escucha de los topics suscritos.
+
+&#x09;- El riego está permitido
+
+&#x09;- Lecturas de sensores a demanda si hay conexión a internet y el servidor responde ping
+
+&#x09;- Lecturas de sensores automáticas si no hay conexión a internet y/o el servidor no responde ping
+
+
+
+MODO 2 Déficit energético diurno:
+
+&#x09;Condiciones:
+
+&#x09;- Generación de panel solar < consumo total del sistema
+
+&#x09;- % de la batería superior al 40% 
+
+&#x09;- Entre las 6 am y 6pm
+
+
+
+
+
+MODO 3 Ciclo nocturno:
+
+&#x09;Condiciones
+
+
+
+MODO 4 Déficit energético nocturno:
+
+
+
+
+
+MODO 5 Criticidad energética:
+
